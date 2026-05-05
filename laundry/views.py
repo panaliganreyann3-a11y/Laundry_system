@@ -187,7 +187,7 @@ def track_order(request):
             order = Order.objects.select_related('customer').get(id=int(order_id))
         except (Order.DoesNotExist, ValueError):
             error = f"No order found with ID #{order_id}."
-    return render(request, 'track_order.html', {'order': order, 'error': error})
+    return render(request, 'laundry/track_order.html', {'order': order, 'error': error})
 
 
 # ── Staff List ────────────────────────────

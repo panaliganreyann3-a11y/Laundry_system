@@ -1,0 +1,107 @@
+{% extends 'laundry/base.html' %}
+{% block title %}Add Account{% endblock %}
+{% block page_title %}Add Account{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card shadow">
+      <div class="card-header">
+        <strong><i class="bi bi-person-plus me-2"></i>New Account</strong>
+      </div>
+      <div class="card-body">
+        <form method="post" id="accountForm">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Account Type</label>
+            <select name="role" id="roleSelect" class="form-select" required>
+              <option value="staff">Staff</option>
+              <option value="admin">Admin</option>
+              <option value="customer">Customer</option>
+            </select>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6 staff-admin-field">
+              <label class="form-label fw-bold">Username</label>
+              <input type="text" name="username" id="usernameInput" class="form-control" autofocus>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Email</label>
+              <input type="email" name="email" id="emailInput" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Password</label>
+              <input type="password" name="password" class="form-control" required minlength="8">
+              <div class="form-text">Minimum 8 characters.</div>
+            </div>
+          </div>
+
+          <div class="customer-fields mt-3 d-none">
+            <hr>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Customer Name</label>
+                <input type="text" name="name" id="nameInput" class="form-control">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Contact Number</label>
+                <input type="text" name="contact" id="contactInput" class="form-control">
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-bold">Address</label>
+                <textarea name="address" id="addressInput" class="form-control" rows="2"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert alert-info small mt-3 mb-0" id="roleHelp">
+            Staff accounts can access staff workflows. Admin accounts can manage reports, pricing, inventory rules, and accounts.
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary flex-fill">
+              <i class="bi bi-check-lg me-1"></i>Create Account
+            </button>
+            <a href="{% url 'account_list' %}" class="btn btn-outline-secondary flex-fill">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const roleSelect = document.getElementById('roleSelect');
+  const customerFields = document.querySelector('.customer-fields');
+  const staffAdminFields = document.querySelectorAll('.staff-admin-field');
+  const usernameInput = document.getElementById('usernameInput');
+  const emailInput = document.getElementById('emailInput');
+  const nameInput = document.getElementById('nameInput');
+  const contactInput = document.getElementById('contactInput');
+  const addressInput = document.getElementById('addressInput');
+  const roleHelp = document.getElementById('roleHelp');
+
+  function syncRoleFields() {
+    const isCustomer = roleSelect.value === 'customer';
+    customerFields.classList.toggle('d-none', !isCustomer);
+    staffAdminFields.forEach((field) => field.classList.toggle('d-none', isCustomer));
+
+    usernameInput.required = !isCustomer;
+    emailInput.required = isCustomer;
+    nameInput.required = isCustomer;
+    contactInput.required = isCustomer;
+    addressInput.required = isCustomer;
+
+    roleHelp.textContent = isCustomer
+      ? 'Customer accounts use their email as the login and are linked to a customer profile.'
+      : 'Staff accounts can access staff workflows. Admin accounts can manage reports, pricing, inventory rules, and accounts.';
+  }
+
+  roleSelect.addEventListener('change', syncRoleFields);
+  syncRoleFields();
+</script>
+
+{% endblock %}

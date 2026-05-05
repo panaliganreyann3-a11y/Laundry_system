@@ -111,7 +111,7 @@ def render_staff_task_dashboard(request, order_type, task_title, clear_url_name)
     paginator = Paginator(orders, ITEMS_PER_PAGE)
     page_obj = paginator.get_page(request.GET.get('page', 1))
 
-    return render(request, 'staff_dashboard.html', {
+    return render(request, 'staff_portal/staff_dashboard.html', {
         'orders': page_obj,
         'page_obj': page_obj,
         'total_orders': total_orders,
@@ -178,7 +178,7 @@ def kanban_board(request):
         for status in active
     ]
     total_active = sum(column['count'] for column in kanban_columns)
-    return render(request, 'kanban.html', {
+    return render(request, 'staff_portal/kanban.html', {
         'kanban_columns': kanban_columns,
         'total_active': total_active,
         'is_admin': is_admin(request.user),
@@ -200,7 +200,7 @@ def customer_list(request):
     paginator = Paginator(customers, ITEMS_PER_PAGE)
     page_obj = paginator.get_page(request.GET.get('page', 1))
 
-    return render(request, 'customer_list.html', {
+    return render(request, 'staff_portal/customer_list.html', {
         'customers': page_obj,
         'page_obj': page_obj,
         'search': search,
@@ -218,7 +218,7 @@ def add_customer(request):
         contact = request.POST.get('contact', '').strip()
         if not name or not contact:
             messages.error(request, "Name and contact are required.")
-            return render(request, 'add_customer.html', {'is_admin': is_admin(request.user)})
+            return render(request, 'staff_portal/add_customer.html', {'is_admin': is_admin(request.user)})
         Customer.objects.create(
             name=name,
             contact=contact,
@@ -229,7 +229,7 @@ def add_customer(request):
         )
         messages.success(request, f"Customer '{name}' added.")
         return redirect('customer_list')
-    return render(request, 'add_customer.html', {'is_admin': is_admin(request.user)})
+    return render(request, 'staff_portal/add_customer.html', {'is_admin': is_admin(request.user)})
 
 
 # ── Edit Customer ─────────────────────────
@@ -247,7 +247,7 @@ def edit_customer(request, customer_id):
         customer.save()
         messages.success(request, f"Customer '{customer.name}' updated.")
         return redirect('customer_detail', customer_id=customer.id)
-    return render(request, 'edit_customer.html', {
+    return render(request, 'staff_portal/edit_customer.html', {
         'customer': customer,
         'is_admin': is_admin(request.user),
     })
@@ -275,7 +275,7 @@ def add_order(request):
             weight = float(request.POST.get('weight', 0))
         except ValueError:
             messages.error(request, "Invalid weight.")
-            return render(request, 'add_order.html', {
+            return render(request, 'staff_portal/add_order.html', {
                 'customers': customers, 'config': config,
                 'staff_users': staff_users, 'service_choices': Order.SERVICE_CHOICES,
                 'payment_methods': Order.PAYMENT_METHOD_CHOICES, 'is_admin': is_admin(request.user)
@@ -283,7 +283,7 @@ def add_order(request):
 
         if weight <= 0:
             messages.error(request, "Weight must be greater than 0 kg.")
-            return render(request, 'add_order.html', {
+            return render(request, 'staff_portal/add_order.html', {
                 'customers': customers, 'config': config,
                 'staff_users': staff_users, 'service_choices': Order.SERVICE_CHOICES,
                 'payment_methods': Order.PAYMENT_METHOD_CHOICES, 'is_admin': is_admin(request.user)
@@ -346,7 +346,7 @@ def add_order(request):
         messages.success(request, f"Order #{order.id} (Q#{queue_number}) created for {order.customer.name}!")
         return redirect('admin_dashboard' if is_admin(request.user) else 'staff_dashboard')
 
-    return render(request, 'add_order.html', {
+    return render(request, 'staff_portal/add_order.html', {
         'customers': customers,
         'config': config,
         'staff_users': staff_users,
@@ -554,7 +554,7 @@ def confirm_cod_payment(request, order_id):
 def customer_detail(request, customer_id):
     customer = get_object_or_404(Customer, id=customer_id)
     orders = customer.orders.order_by('-created_at')
-    return render(request, 'customer_detail.html', {
+    return render(request, 'staff_portal/customer_detail.html', {
         'customer': customer,
         'orders': orders,
         'is_admin': is_admin(request.user),
@@ -569,7 +569,7 @@ def order_receipt(request, order_id):
     if not order.qr_code:
         generate_qr_for_order(order)
         order.refresh_from_db()
-    return render(request, 'receipt.html', {'order': order, 'is_admin': is_admin(request.user)})
+    return render(request, 'staff_portal/receipt.html', {'order': order, 'is_admin': is_admin(request.user)})
 
 
 # ── Reports ───────────────────────────────
@@ -588,14 +588,14 @@ def edit_order(request, order_id):
             weight = float(request.POST.get('weight', 0))
         except ValueError:
             messages.error(request, "Invalid weight.")
-            return render(request, 'edit_order.html', {
+            return render(request, 'staff_portal/edit_order.html', {
                 'order': order, 'customers': customers, 'staff_users': staff_users,
                 'service_choices': Order.SERVICE_CHOICES, 'payment_methods': Order.PAYMENT_METHOD_CHOICES,
                 'is_admin': is_admin(request.user)
             })
         if weight < 0 or (order.order_type == 'WALK_IN' and weight <= 0):
             messages.error(request, "Weight must be greater than 0 kg.")
-            return render(request, 'edit_order.html', {
+            return render(request, 'staff_portal/edit_order.html', {
                 'order': order, 'customers': customers, 'staff_users': staff_users,
                 'service_choices': Order.SERVICE_CHOICES, 'payment_methods': Order.PAYMENT_METHOD_CHOICES,
                 'is_admin': is_admin(request.user)
@@ -639,7 +639,7 @@ def edit_order(request, order_id):
         messages.success(request, f"Order #{order.id} updated.")
         return redirect('admin_dashboard' if is_admin(request.user) else 'staff_dashboard')
 
-    return render(request, 'edit_order.html', {
+    return render(request, 'staff_portal/edit_order.html', {
         'order': order,
         'customers': customers,
         'staff_users': staff_users,
@@ -678,7 +678,7 @@ def inventory_list(request):
     )['total'] or 0
     categories = InventoryCategory.objects.all()
 
-    return render(request, 'inventory.html', {
+    return render(request, 'laundry/inventory.html', {
         'section': 'list',
         'items': items,
         'categories': categories,
@@ -698,7 +698,7 @@ def inventory_detail(request, item_id):
     movements = StockMovement.objects.filter(item=item).select_related(
         'reference_order__customer', 'performed_by'
     ).order_by('-created_at')[:50]
-    return render(request, 'inventory.html', {
+    return render(request, 'laundry/inventory.html', {
         'section': 'detail',
         'item': item,
         'movements': movements,
@@ -713,12 +713,12 @@ def restock_item(request, item_id):
             quantity = float(request.POST.get('quantity', 0))
         except ValueError:
             messages.error(request, "Invalid quantity.")
-            return render(request, 'inventory.html', {
+            return render(request, 'laundry/inventory.html', {
                 'section': 'restock', 'item': item, 'is_admin': is_admin(request.user)
             })
         if quantity <= 0:
             messages.error(request, "Quantity must be greater than 0.")
-            return render(request, 'inventory.html', {
+            return render(request, 'laundry/inventory.html', {
                 'section': 'restock', 'item': item, 'is_admin': is_admin(request.user)
             })
         notes = request.POST.get('notes', '').strip()
@@ -731,7 +731,7 @@ def restock_item(request, item_id):
         )
         messages.success(request, f"+{quantity} {item.unit} added to '{item.name}'. New stock: {item.current_stock}")
         return redirect('inventory_detail', item_id=item.id)
-    return render(request, 'inventory.html', {
+    return render(request, 'laundry/inventory.html', {
         'section': 'restock', 'item': item, 'is_admin': is_admin(request.user)
     })
 
@@ -747,13 +747,13 @@ def deduct_stock(request, item_id):
             quantity = float(request.POST.get('quantity', 0))
         except ValueError:
             messages.error(request, "Invalid quantity.")
-            return render(request, 'inventory.html', {
+            return render(request, 'laundry/inventory.html', {
                 'section': 'deduct', 'item': item,
                 'active_orders': active_orders, 'is_admin': is_admin(request.user)
             })
         if quantity <= 0:
             messages.error(request, "Quantity must be greater than 0.")
-            return render(request, 'inventory.html', {
+            return render(request, 'laundry/inventory.html', {
                 'section': 'deduct', 'item': item,
                 'active_orders': active_orders, 'is_admin': is_admin(request.user)
             })
@@ -769,7 +769,7 @@ def deduct_stock(request, item_id):
         )
         messages.success(request, f"-{quantity} {item.unit} from '{item.name}'. Remaining: {item.current_stock}")
         return redirect('inventory_detail', item_id=item.id)
-    return render(request, 'inventory.html', {
+    return render(request, 'laundry/inventory.html', {
         'section': 'deduct', 'item': item,
         'active_orders': active_orders, 'is_admin': is_admin(request.user)
     })

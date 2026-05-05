@@ -125,6 +125,7 @@
     <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Dashboard</a>
     <a href="{% url 'kanban_board' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Kanban</a>
     <a href="{% url 'customer_list' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Customers</a>
+    <a href="{% url 'account_list' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Accounts</a>
     <a href="{% url 'reports' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Reports</a>
     {% else %}
     <a href="{% url 'delivery_tasks' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Dashboard</a>
@@ -169,8 +170,8 @@
     <a href="{% url 'pricing_settings' %}" class="sb-link {% if request.resolver_match.url_name == 'pricing_settings' %}active{% endif %}">
       <i class="bi bi-tags"></i> Pricing
     </a>
-    <a href="{% url 'staff_list' %}" class="sb-link {% if request.resolver_match.url_name == 'staff_list' %}active{% endif %}">
-      <i class="bi bi-person-badge"></i> Staff
+    <a href="{% url 'account_list' %}" class="sb-link {% if request.resolver_match.url_name == 'account_list' or request.resolver_match.url_name == 'add_account' or request.resolver_match.url_name == 'staff_list' or request.resolver_match.url_name == 'add_staff' %}active{% endif %}">
+      <i class="bi bi-person-vcard"></i> Accounts
     </a>
     <a href="{% url 'inventory_list' %}" class="sb-link {% if request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'add_inventory_item' or request.resolver_match.url_name == 'inventory_detail' or request.resolver_match.url_name == 'low_stock_alert' or request.resolver_match.url_name == 'stock_history' or request.resolver_match.url_name == 'restock_item' or request.resolver_match.url_name == 'deduct_stock' %}active{% endif %}">
       <i class="bi bi-boxes"></i> Inventory

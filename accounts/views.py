@@ -20,7 +20,7 @@ def admin_login(request):
             auth_login(request, user)
             return redirect('admin_dashboard')
         error = "Invalid credentials or not an admin account."
-    return render(request, 'admin_login.html', {'error': error})
+    return render(request, 'accounts/admin_login.html', {'error': error})
 
 
 def staff_login(request):
@@ -44,4 +44,4 @@ def staff_login(request):
             error = "Please use the admin login page."
         else:
             error = "Invalid username or password."
-    return render(request, 'staff_login.html', {'error': error})
+    return render(request, 'accounts/staff_login.html', {'error': error})

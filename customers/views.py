@@ -33,23 +33,23 @@ def customer_register(request):
 
         if not all([name, contact, email, address, password1, password2]):
             messages.error(request, "Please complete all required fields.")
-            return render(request, 'customer_register.html')
+            return render(request, 'customers/customer_register.html')
         if password1 != password2:
             messages.error(request, "Passwords do not match.")
-            return render(request, 'customer_register.html')
+            return render(request, 'customers/customer_register.html')
         if len(password1) < 8:
             messages.error(request, "Password must be at least 8 characters.")
-            return render(request, 'customer_register.html')
+            return render(request, 'customers/customer_register.html')
         if User.objects.filter(username__iexact=email).exists():
             messages.error(request, "An account with this email already exists.")
-            return render(request, 'customer_register.html')
+            return render(request, 'customers/customer_register.html')
 
         existing_customer = Customer.objects.filter(
             Q(email__iexact=email) | Q(contact=contact)
         ).first()
         if existing_customer and existing_customer.user_id:
             messages.error(request, "A customer account already exists for this email or contact number.")
-            return render(request, 'customer_register.html')
+            return render(request, 'customers/customer_register.html')
 
         with transaction.atomic():
             user = User.objects.create_user(
@@ -84,7 +84,7 @@ def customer_register(request):
         messages.success(request, f"Welcome, {customer.name}. You can now request pickup and delivery.")
         return redirect('customer_dashboard')
 
-    return render(request, 'customer_register.html')
+    return render(request, 'customers/customer_register.html')
 
 
 def customer_login(request):
@@ -105,7 +105,7 @@ def customer_login(request):
             error = "Please use the staff or admin login page."
         else:
             error = "Invalid email or password."
-    return render(request, 'customer_login.html', {'error': error})
+    return render(request, 'customers/customer_login.html', {'error': error})
 
 
 @customer_required
@@ -113,7 +113,7 @@ def customer_dashboard(request):
     customer = request.user.customer_profile
     orders = customer.orders.order_by('-created_at')[:10]
     active_orders = customer.orders.exclude(status__in=['COMPLETED', 'CANCELLED']).count()
-    return render(request, 'customer_dashboard.html', {
+    return render(request, 'customers/customer_dashboard.html', {
         'customer': customer,
         'orders': orders,
         'active_orders': active_orders,
@@ -124,7 +124,7 @@ def customer_dashboard(request):
 def customer_order_history(request):
     customer = request.user.customer_profile
     orders = customer.orders.order_by('-created_at')
-    return render(request, 'customer_order_history.html', {
+    return render(request, 'customers/customer_order_history.html', {
         'customer': customer,
         'orders': orders,
     })
@@ -134,7 +134,7 @@ def customer_order_history(request):
 def customer_order_detail(request, order_id):
     customer = request.user.customer_profile
     order = get_object_or_404(customer.orders, id=order_id)
-    return render(request, 'customer_order_detail.html', {
+    return render(request, 'customers/customer_order_detail.html', {
         'customer': customer,
         'order': order,
         'config': PricingConfig.objects.first(),
@@ -157,7 +157,7 @@ def customer_new_order(request):
 
         if not pickup_address or not delivery_address or not preferred_pickup_raw:
             messages.error(request, "Pickup address, delivery address, and preferred pickup time are required.")
-            return render(request, 'customer_new_order.html', {
+            return render(request, 'customers/customer_new_order.html', {
                 'customer': customer,
                 'config': config,
                 'service_choices': Order.SERVICE_CHOICES,
@@ -209,7 +209,7 @@ def customer_new_order(request):
         messages.success(request, f"Pickup request #{order.id} submitted.")
         return redirect('customer_order_detail', order_id=order.id)
 
-    return render(request, 'customer_new_order.html', {
+    return render(request, 'customers/customer_new_order.html', {
         'customer': customer,
         'config': config,
         'service_choices': Order.SERVICE_CHOICES,
@@ -248,7 +248,7 @@ def customer_profile(request):
         messages.success(request, "Profile updated.")
         return redirect('customer_profile')
 
-    return render(request, 'customer_profile.html', {'customer': customer})
+    return render(request, 'customers/customer_profile.html', {'customer': customer})
 
 
 @customer_required

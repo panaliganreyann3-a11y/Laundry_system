@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group, User
 from django.core.paginator import Paginator
 from django.db import IntegrityError
-from django.db.models import Case, Count, F, IntegerField, Sum, When
+from django.db.models import Case, Count, F, IntegerField, Q, Sum, When
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
@@ -114,7 +114,7 @@ def admin_dashboard(request):
     paginator = Paginator(orders, ITEMS_PER_PAGE)
     page_obj = paginator.get_page(request.GET.get('page', 1))
 
-    return render(request, 'admin_dashboard.html', {
+    return render(request, 'admin_portal/admin_dashboard.html', {
         'orders': page_obj,
         'page_obj': page_obj,
         'today_stats': today_stats,
@@ -173,7 +173,7 @@ def pricing_settings(request):
             )
         messages.success(request, "Pricing updated.")
         return redirect('pricing_settings')
-    return render(request, 'pricing.html', {'config': config, 'is_admin': True})
+    return render(request, 'admin_portal/pricing.html', {'config': config, 'is_admin': True})
 
 
 @login_required
@@ -215,7 +215,7 @@ def reports(request):
     rush_orders = Order.objects.filter(is_priority=True).count()
     avg_value = round(total_revenue / total_orders, 2) if total_orders else 0
 
-    return render(request, 'reports.html', {
+    return render(request, 'admin_portal/reports.html', {
         'is_admin': True,
         'revenue_labels': json.dumps([d.strftime('%b %d') for d in date_range]),
         'revenue_data': json.dumps([float(rev_map.get(d, 0)) for d in date_range]),
@@ -257,58 +257,121 @@ def export_csv(request):
 
 
 @login_required
-def staff_list(request):
+def account_list(request):
     if not is_admin(request.user):
         return HttpResponseForbidden()
-    return render(request, 'staff_list.html', {
-        'staff': User.objects.all().order_by('-date_joined'),
+
+    admin_accounts = User.objects.filter(
+        Q(is_superuser=True) | Q(groups__name='Admin')
+    ).distinct().order_by('username')
+    customer_accounts = User.objects.filter(
+        customer_profile__isnull=False
+    ).select_related('customer_profile').distinct().order_by('username')
+    staff_accounts = User.objects.exclude(
+        id__in=admin_accounts.values('id')
+    ).exclude(
+        id__in=customer_accounts.values('id')
+    ).distinct().order_by('username')
+
+    return render(request, 'admin_portal/account_list.html', {
+        'admin_accounts': admin_accounts,
+        'staff_accounts': staff_accounts,
+        'customer_accounts': customer_accounts,
+        'admin_count': admin_accounts.count(),
+        'staff_count': staff_accounts.count(),
+        'customer_account_count': customer_accounts.count(),
         'is_admin': True,
     })
 
 
 @login_required
-def add_staff(request):
+def add_account(request):
     if not is_admin(request.user):
         return HttpResponseForbidden()
     if request.method == 'POST':
-        username = request.POST.get('username', '').strip()
-        password = request.POST.get('password', '')
         role = request.POST.get('role', 'staff')
+        username = request.POST.get('username', '').strip()
+        email = request.POST.get('email', '').strip().lower()
+        password = request.POST.get('password', '')
+
+        if role == 'customer':
+            username = email
+
         if not username or not password:
-            messages.error(request, "Username and password are required.")
-            return redirect('add_staff')
+            messages.error(request, "Username/email and password are required.")
+            return redirect('add_account')
         if len(password) < 8:
             messages.error(request, "Password must be at least 8 characters.")
-            return redirect('add_staff')
+            return redirect('add_account')
         if User.objects.filter(username=username).exists():
             messages.error(request, f"Username '{username}' is already taken.")
-            return redirect('add_staff')
-        user = User.objects.create_user(username=username, password=password)
+            return redirect('add_account')
+        if email and User.objects.filter(email__iexact=email).exists():
+            messages.error(request, f"Email '{email}' is already used.")
+            return redirect('add_account')
+
+        user = User.objects.create_user(username=username, email=email, password=password)
         if role == 'admin':
             user.is_superuser = True
             user.is_staff = True
             user.save()
+            admin_group, _ = Group.objects.get_or_create(name='Admin')
+            user.groups.add(admin_group)
+        elif role == 'customer':
+            name = request.POST.get('name', '').strip()
+            contact = request.POST.get('contact', '').strip()
+            address = request.POST.get('address', '').strip()
+            if not all([name, contact, email, address]):
+                user.delete()
+                messages.error(request, "Customer name, contact, email, and address are required.")
+                return redirect('add_account')
+            existing_customer = Customer.objects.filter(Q(email__iexact=email) | Q(contact=contact)).first()
+            if existing_customer and existing_customer.user_id:
+                user.delete()
+                messages.error(request, "A customer account already exists for that email or contact number.")
+                return redirect('add_account')
+            customer_group, _ = Group.objects.get_or_create(name='Customer')
+            user.groups.add(customer_group)
+            user.first_name = name
+            user.save(update_fields=['first_name'])
+            if existing_customer:
+                existing_customer.user = user
+                existing_customer.name = name
+                existing_customer.contact = contact
+                existing_customer.email = email
+                existing_customer.address = address
+                existing_customer.is_walk_in = False
+                existing_customer.save()
+            else:
+                Customer.objects.create(
+                    user=user,
+                    name=name,
+                    contact=contact,
+                    email=email,
+                    address=address,
+                    is_walk_in=False,
+                )
         else:
             group, _ = Group.objects.get_or_create(name='Staff')
             user.groups.add(group)
-        messages.success(request, f"Account '{username}' created.")
-        return redirect('staff_list')
-    return render(request, 'add_staff.html', {'is_admin': True})
+        messages.success(request, f"{role.title()} account '{username}' created.")
+        return redirect('account_list')
+    return render(request, 'admin_portal/add_account.html', {'is_admin': True})
 
 
 @login_required
-def toggle_staff(request, user_id):
+def toggle_account(request, user_id):
     if not is_admin(request.user):
         return HttpResponseForbidden()
     if request.method == 'POST':
         user = get_object_or_404(User, id=user_id)
         if user == request.user:
             messages.error(request, "Cannot deactivate your own account.")
-            return redirect('staff_list')
+            return redirect('account_list')
         user.is_active = not user.is_active
         user.save()
         messages.success(request, f"'{user.username}' {'activated' if user.is_active else 'deactivated'}.")
-    return redirect('staff_list')
+    return redirect('account_list')
 
 
 @login_required
@@ -320,11 +383,11 @@ def reset_password(request, user_id):
         pw = request.POST.get('new_password', '')
         if len(pw) < 8:
             messages.error(request, "Password must be at least 8 characters.")
-            return redirect('staff_list')
+            return redirect('account_list')
         user.set_password(pw)
         user.save()
         messages.success(request, f"Password for '{user.username}' reset.")
-    return redirect('staff_list')
+    return redirect('account_list')
 
 
 @login_required
@@ -358,13 +421,13 @@ def add_inventory_item(request):
             unit_cost = float(request.POST.get('unit_cost', 0))
         except ValueError:
             messages.error(request, "Invalid numeric values.")
-            return render(request, 'inventory.html', {
+            return render(request, 'laundry/inventory.html', {
                 'section': 'add', 'categories': categories, 'is_admin': True
             })
 
         if not name:
             messages.error(request, "Item name is required.")
-            return render(request, 'inventory.html', {
+            return render(request, 'laundry/inventory.html', {
                 'section': 'add', 'categories': categories, 'is_admin': True
             })
 
@@ -384,7 +447,7 @@ def add_inventory_item(request):
         messages.success(request, f"'{name}' added to inventory.")
         return redirect('inventory_detail', item_id=item.id)
 
-    return render(request, 'inventory.html', {
+    return render(request, 'laundry/inventory.html', {
         'section': 'add',
         'categories': categories,
         'unit_choices': InventoryItem.UNIT_CHOICES,
@@ -472,7 +535,7 @@ def service_inventory_usage(request):
     if edit_id:
         selected_rule = get_object_or_404(ServiceInventoryUsage.objects.select_related('item'), id=edit_id)
 
-    return render(request, 'service_inventory_usage.html', {
+    return render(request, 'admin_portal/service_inventory_usage.html', {
         'rules': rules,
         'items': items,
         'service_choices': Order.SERVICE_CHOICES,
@@ -508,7 +571,7 @@ def low_stock_alert(request):
     low_items = InventoryItem.objects.filter(
         is_active=True, current_stock__lte=F('minimum_stock')
     ).select_related('category').order_by('current_stock')
-    return render(request, 'inventory.html', {
+    return render(request, 'laundry/inventory.html', {
         'section': 'low_stock',
         'low_stock_items': low_items,
         'low_stock_count': low_items.count(),
@@ -540,7 +603,7 @@ def stock_history(request):
     paginator = Paginator(movements, 30)
     page_obj = paginator.get_page(request.GET.get('page', 1))
 
-    return render(request, 'inventory.html', {
+    return render(request, 'laundry/inventory.html', {
         'section': 'history',
         'movements': page_obj,
         'page_obj': page_obj,
