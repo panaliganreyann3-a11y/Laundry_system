@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}Staff Management{% endblock %}
+{% block page_title %}Staff Management{% endblock %}
+
+{% block content %}
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<div class="card shadow">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong>👥 Staff Accounts</strong>
+    <a href="{% url 'add_staff' %}" class="btn btn-sm btn-primary">+ Add Staff</a>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Date Joined</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for member in staff %}
+        <tr>
+          <td>
+            <strong>{{ member.username }}</strong>
+            {% if member == request.user %}
+              <span class="badge bg-secondary ms-1">You</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if member.is_superuser %}
+              <span class="badge bg-danger">Admin</span>
+            {% else %}
+              <span class="badge bg-primary">Staff</span>
+            {% endif %}
+          </td>
+          <td>{{ member.date_joined|date:"M d, Y" }}</td>
+          <td>
+            {% if member.is_active %}
+              <span class="badge bg-success">Active</span>
+            {% else %}
+              <span class="badge bg-secondary">Inactive</span>
+            {% endif %}
+          </td>
+          <td class="d-flex gap-2">
+            <!-- Toggle Active -->
+            {% if member != request.user %}
+            <form method="post" action="{% url 'toggle_staff' member.id %}">
+              {% csrf_token %}
+              <button class="btn btn-sm {% if member.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
+                {% if member.is_active %}Deactivate{% else %}Activate{% endif %}
+              </button>
+            </form>
+            {% endif %}
+
+            <!-- Reset Password -->
+            <button
+              class="btn btn-sm btn-outline-secondary"
+              data-bs-toggle="modal"
+              data-bs-target="#resetModal{{ member.id }}"
+            >
+              🔑 Reset PW
+            </button>
+          </td>
+        </tr>
+
+        <!-- Reset Password Modal -->
+        <div class="modal fade" id="resetModal{{ member.id }}" tabindex="-1">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Reset Password — {{ member.username }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <form method="post" action="{% url 'reset_password' member.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                  <label class="form-label">New Password</label>
+                  <input type="password" name="new_password" class="form-control" required minlength="6">
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button type="submit" class="btn btn-danger">Reset Password</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

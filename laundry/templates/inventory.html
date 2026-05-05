@@ -1,0 +1,844 @@
+{% extends 'base.html' %}
+{% load laundry_filters %}
+
+{% block title %}
+  {% if section == 'list' %}Inventory
+  {% elif section == 'detail' %}{{ item.name }}
+  {% elif section == 'restock' %}Restock — {{ item.name }}
+  {% elif section == 'deduct' %}Deduct — {{ item.name }}
+  {% elif section == 'low_stock' %}Low Stock Alerts
+  {% elif section == 'history' %}Stock History
+  {% elif section == 'add' %}Add Inventory Item
+  {% endif %}
+{% endblock %}
+
+{% block page_title %}
+  {% if section == 'list' %}Inventory
+  {% elif section == 'detail' %}{{ item.name }}
+  {% elif section == 'restock' %}Restock — {{ item.name }}
+  {% elif section == 'deduct' %}Deduct Stock — {{ item.name }}
+  {% elif section == 'low_stock' %}Low Stock Alerts
+  {% elif section == 'history' %}Stock Movement History
+  {% elif section == 'add' %}Add Inventory Item
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+
+{# ══════════════════════════════════════════════════════════════ #}
+{# SECTION: LIST — Inventory Overview                           #}
+{# ══════════════════════════════════════════════════════════════ #}
+{% if section == 'list' %}
+
+  {# KPI Row #}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="kpi kpi-primary d-flex justify-content-between align-items-start">
+        <div>
+          <div class="kpi-label">Total Items</div>
+          <div class="kpi-val">{{ total_items }}</div>
+        </div>
+        <i class="bi bi-boxes kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi kpi-danger d-flex justify-content-between align-items-start">
+        <div>
+          <div class="kpi-label">Low / Out of Stock</div>
+          <div class="kpi-val">{{ low_stock_count }}</div>
+        </div>
+        <i class="bi bi-exclamation-triangle kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi kpi-teal d-flex justify-content-between align-items-start">
+        <div>
+          <div class="kpi-label">Total Stock Value</div>
+          <div class="kpi-val" style="font-size:1.3rem">₱{{ total_value|floatformat:2 }}</div>
+        </div>
+        <i class="bi bi-cash-coin kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi kpi-warning d-flex justify-content-between align-items-start">
+        <div>
+          <div class="kpi-label">Categories</div>
+          <div class="kpi-val">{{ category_count }}</div>
+        </div>
+        <i class="bi bi-tags kpi-icon"></i>
+      </div>
+    </div>
+  </div>
+
+  {# Low-stock alert banner #}
+  {% if low_stock_count > 0 %}
+  <div class="alert alert-danger d-flex align-items-center gap-3 mb-3 shadow-sm" role="alert">
+    <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+    <div>
+      <strong>{{ low_stock_count }} item{{ low_stock_count|pluralize }} below minimum stock.</strong>
+      <a href="{% url 'low_stock_alert' %}" class="alert-link ms-2">View all →</a>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Filter Bar #}
+  <form method="get" class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" name="search" class="form-control"
+                   placeholder="Search items..." value="{{ search }}">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <select name="category" class="form-select form-select-sm">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}" {% if category_filter == cat.id|stringformat:"i" %}selected{% endif %}>
+              {{ cat.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <div class="form-check ms-2">
+            <input type="checkbox" name="low_stock" value="1" class="form-check-input"
+                   id="lowStockCheck" {% if low_stock_filter %}checked{% endif %}>
+            <label class="form-check-label small" for="lowStockCheck">Low stock only</label>
+          </div>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button class="btn btn-primary btn-sm flex-fill">Filter</button>
+          <a href="{% url 'inventory_list' %}" class="btn btn-outline-secondary btn-sm flex-fill">Clear</a>
+          {% if request.user.is_staff %}
+          <a href="{% url 'add_inventory_item' %}" class="btn btn-success btn-sm" title="Add Item">
+            <i class="bi bi-plus-lg"></i>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </form>
+
+  {# Inventory Table #}
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong>Stock Items</strong>
+      <div class="d-flex gap-2">
+        <a href="{% url 'stock_history' %}" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-clock-history me-1"></i>History
+        </a>
+        {% if request.user.is_staff %}
+        <a href="{% url 'add_inventory_item' %}" class="btn btn-sm btn-success">
+          <i class="bi bi-plus-lg me-1"></i>Add Item
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card-body p-0 table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Item</th>
+            <th>Category</th>
+            <th>Unit</th>
+            <th class="text-end">Current Stock</th>
+            <th class="text-end">Min. Stock</th>
+            <th>Status</th>
+            <th class="text-end">Unit Cost</th>
+            <th class="text-end">Total Value</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr {% if item.current_stock <= 0 %}style="background:#fff5f5"
+              {% elif item.is_low_stock %}style="background:#fffbf0"{% endif %}>
+            <td class="fw-semibold">{{ item.name }}</td>
+            <td><small class="text-muted">{{ item.category.name|default:"—" }}</small></td>
+            <td><small class="text-muted">{{ item.unit }}</small></td>
+            <td class="text-end fw-bold {% if item.current_stock <= 0 %}text-danger{% elif item.is_low_stock %}text-warning{% endif %}">
+              {{ item.current_stock }}
+            </td>
+            <td class="text-end text-muted small">{{ item.minimum_stock }}</td>
+            <td>
+              <span class="badge bg-{{ item.stock_status.0 }}">{{ item.stock_status.1 }}</span>
+            </td>
+            <td class="text-end text-muted small">₱{{ item.unit_cost|floatformat:2 }}</td>
+            <td class="text-end fw-semibold text-success">₱{{ item.total_value|floatformat:2 }}</td>
+            <td>
+              <div class="d-flex gap-1 flex-nowrap">
+                <a href="{% url 'inventory_detail' item.id %}"
+                   class="btn btn-sm btn-outline-primary" title="View">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <a href="{% url 'restock_item' item.id %}"
+                   class="btn btn-sm btn-outline-success" title="Restock">
+                  <i class="bi bi-plus-circle"></i>
+                </a>
+                <a href="{% url 'deduct_stock' item.id %}"
+                   class="btn btn-sm btn-outline-danger" title="Deduct">
+                  <i class="bi bi-dash-circle"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-5">
+              <i class="bi bi-boxes" style="font-size:2rem"></i><br>
+              No inventory items found.
+              {% if request.user.is_staff %}
+              <a href="{% url 'add_inventory_item' %}">Add the first item</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
+{# ══════════════════════════════════════════════════════════════ #}
+{# SECTION: DETAIL — Item Profile & Movement History            #}
+{# ══════════════════════════════════════════════════════════════ #}
+{% elif section == 'detail' %}
+
+  <div class="mb-3">
+    <a href="{% url 'inventory_list' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back to Inventory
+    </a>
+  </div>
+
+  <div class="row g-4">
+
+    {# Item Info Card #}
+    <div class="col-md-4">
+      <div class="card mb-3">
+        <div class="card-body text-center py-4">
+          <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
+               style="width:64px;height:64px;background:linear-gradient(135deg,#20c997,#0d6efd);color:white;font-size:1.6rem">
+            <i class="bi bi-box-seam"></i>
+          </div>
+          <h5 class="mb-1">{{ item.name }}</h5>
+          <span class="badge bg-{{ item.stock_status.0 }} mb-2 fs-6 px-3 py-2">
+            {{ item.stock_status.1 }}
+          </span>
+          <div class="display-6 fw-bold {% if item.current_stock <= 0 %}text-danger{% elif item.is_low_stock %}text-warning{% else %}text-success{% endif %} mt-2">
+            {{ item.current_stock }}
+          </div>
+          <div class="text-muted small">{{ item.unit }} in stock</div>
+        </div>
+
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item d-flex justify-content-between py-2">
+            <span class="text-muted small">Category</span>
+            <span class="small fw-semibold">{{ item.category.name|default:"Uncategorized" }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between py-2">
+            <span class="text-muted small">Minimum Stock</span>
+            <span class="small fw-semibold">{{ item.minimum_stock }} {{ item.unit }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between py-2">
+            <span class="text-muted small">Unit Cost</span>
+            <span class="small fw-semibold">₱{{ item.unit_cost|floatformat:2 }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between py-2">
+            <span class="text-muted small">Total Value</span>
+            <span class="small fw-bold text-success">₱{{ item.total_value|floatformat:2 }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between py-2">
+            <span class="text-muted small">Added</span>
+            <span class="small">{{ item.created_at|date:"M d, Y" }}</span>
+          </li>
+        </ul>
+
+        <div class="card-footer d-flex gap-2">
+          <a href="{% url 'restock_item' item.id %}" class="btn btn-success btn-sm flex-fill">
+            <i class="bi bi-plus-circle me-1"></i>Restock
+          </a>
+          <a href="{% url 'deduct_stock' item.id %}" class="btn btn-danger btn-sm flex-fill">
+            <i class="bi bi-dash-circle me-1"></i>Deduct
+          </a>
+        </div>
+      </div>
+    </div>
+
+    {# Movement History #}
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <strong>Movement History</strong>
+          <a href="{% url 'stock_history' %}" class="btn btn-sm btn-outline-secondary">
+            Full History
+          </a>
+        </div>
+        <div class="card-body p-0 table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Date &amp; Time</th>
+                <th>Type</th>
+                <th class="text-end">Quantity</th>
+                <th>Order Ref.</th>
+                <th>Notes</th>
+                <th>Staff</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in movements %}
+              <tr>
+                <td class="text-muted small">{{ m.created_at|date:"M d, Y h:i A" }}</td>
+                <td>
+                  {% if m.movement_type == 'RESTOCK' %}
+                  <span class="badge bg-success">Restock</span>
+                  {% elif m.movement_type == 'DEDUCT' %}
+                  <span class="badge bg-danger">Deduct</span>
+                  {% else %}
+                  <span class="badge bg-primary">Adjust</span>
+                  {% endif %}
+                </td>
+                <td class="text-end fw-bold
+                  {% if m.movement_type == 'RESTOCK' %}text-success{% else %}text-danger{% endif %}">
+                  {% if m.movement_type == 'RESTOCK' %}+{% else %}-{% endif %}{{ m.quantity }} {{ item.unit }}
+                </td>
+                <td>
+                  {% if m.reference_order %}
+                  <a href="{% url 'order_receipt' m.reference_order.id %}" class="small">
+                    #{{ m.reference_order.id }} — {{ m.reference_order.customer.name }}
+                  </a>
+                  {% else %}
+                  <span class="text-muted small">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-muted small">{{ m.notes|default:"—"|truncatechars:40 }}</td>
+                <td class="text-muted small">{{ m.performed_by.username|default:"System" }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" class="text-center text-muted py-4">No movements recorded</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+{# ══════════════════════════════════════════════════════════════ #}
+{# SECTION: RESTOCK                                              #}
+{# ══════════════════════════════════════════════════════════════ #}
+{% elif section == 'restock' %}
+
+  <div class="mb-3">
+    <a href="{% url 'inventory_detail' item.id %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back to {{ item.name }}
+    </a>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+
+      {# Current stock info card #}
+      <div class="card mb-3" style="border-left:4px solid #20c997">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small">Item</div>
+            <div class="fw-bold">{{ item.name }}</div>
+            <div class="text-muted small">{{ item.category.name|default:"Uncategorized" }}</div>
+          </div>
+          <div class="text-center">
+            <div class="text-muted small">Current Stock</div>
+            <div class="fw-bold fs-4 {% if item.is_low_stock %}text-warning{% else %}text-success{% endif %}">
+              {{ item.current_stock }} <small class="fs-6">{{ item.unit }}</small>
+            </div>
+          </div>
+          <span class="badge bg-{{ item.stock_status.0 }} px-3 py-2">{{ item.stock_status.1 }}</span>
+        </div>
+      </div>
+
+      {# Restock Form #}
+      <div class="card">
+        <div class="card-header">
+          <strong><i class="bi bi-plus-circle-fill text-success me-2"></i>Add Stock</strong>
+        </div>
+        <div class="card-body">
+          <form method="POST" action="{% url 'restock_item' item.id %}">
+            {% csrf_token %}
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Quantity to Add <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" step="0.01" min="0.01" name="quantity" id="restockQty"
+                       class="form-control form-control-lg" placeholder="0"
+                       oninput="updateRestockPreview()" required autofocus>
+                <span class="input-group-text fw-semibold">{{ item.unit }}</span>
+              </div>
+            </div>
+
+            {# Live preview #}
+            <div class="rounded-3 p-3 mb-3" style="background:#f0fff8; border:1px solid #c3e6cb">
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="text-muted small">Stock after restock:</span>
+                <span id="restockPreview" class="fw-bold fs-5 text-success">
+                  {{ item.current_stock }} {{ item.unit }}
+                </span>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label fw-semibold">Notes <span class="text-muted fw-normal">(optional)</span></label>
+              <textarea name="notes" class="form-control" rows="2"
+                        placeholder="e.g. Delivery from supplier, batch number..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100 py-2">
+              <i class="bi bi-check-circle me-2"></i>Confirm Restock
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  const currentStock = {{ item.current_stock }};
+  const unit = '{{ item.unit }}';
+  function updateRestockPreview() {
+    const qty = parseFloat(document.getElementById('restockQty').value) || 0;
+    const newStock = Math.round((currentStock + qty) * 10000) / 10000;
+    document.getElementById('restockPreview').textContent = newStock + ' ' + unit;
+  }
+  </script>
+
+
+{# ══════════════════════════════════════════════════════════════ #}
+{# SECTION: DEDUCT                                               #}
+{# ══════════════════════════════════════════════════════════════ #}
+{% elif section == 'deduct' %}
+
+  <div class="mb-3">
+    <a href="{% url 'inventory_detail' item.id %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back to {{ item.name }}
+    </a>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+
+      {# Current stock info card #}
+      <div class="card mb-3" style="border-left:4px solid #dc3545">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small">Item</div>
+            <div class="fw-bold">{{ item.name }}</div>
+            <div class="text-muted small">{{ item.category.name|default:"Uncategorized" }}</div>
+          </div>
+          <div class="text-center">
+            <div class="text-muted small">Available</div>
+            <div class="fw-bold fs-4 {% if item.is_low_stock %}text-warning{% else %}text-success{% endif %}">
+              {{ item.current_stock }} <small class="fs-6">{{ item.unit }}</small>
+            </div>
+          </div>
+          <span class="badge bg-{{ item.stock_status.0 }} px-3 py-2">{{ item.stock_status.1 }}</span>
+        </div>
+      </div>
+
+      {# Deduct Form #}
+      <div class="card">
+        <div class="card-header">
+          <strong><i class="bi bi-dash-circle-fill text-danger me-2"></i>Deduct Stock</strong>
+        </div>
+        <div class="card-body">
+          <form method="POST" action="{% url 'deduct_stock' item.id %}">
+            {% csrf_token %}
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Quantity to Deduct <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" step="0.01" min="0.01" name="quantity" id="deductQty"
+                       class="form-control form-control-lg" placeholder="0"
+                       oninput="updateDeductPreview()" required autofocus>
+                <span class="input-group-text fw-semibold">{{ item.unit }}</span>
+              </div>
+              {# Warning message (shown by JS) #}
+              <div id="overStockWarning" class="mt-2 d-none">
+                <div class="alert alert-danger py-2 mb-0 small">
+                  <i class="bi bi-exclamation-triangle me-1"></i>
+                  Quantity exceeds current stock of {{ item.current_stock }} {{ item.unit }}.
+                  Stock will be set to 0.
+                </div>
+              </div>
+            </div>
+
+            {# Live preview #}
+            <div class="rounded-3 p-3 mb-3" style="background:#fff5f5; border:1px solid #f5c6cb">
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="text-muted small">Stock after deduction:</span>
+                <span id="deductPreview" class="fw-bold fs-5 text-danger">
+                  {{ item.current_stock }} {{ item.unit }}
+                </span>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">
+                Reference Order
+                <span class="text-muted fw-normal">(optional)</span>
+              </label>
+              <select name="reference_order" class="form-select">
+                <option value="">— No order reference —</option>
+                {% for order in active_orders %}
+                <option value="{{ order.id }}">
+                  #{{ order.id }} — {{ order.customer.name }} ({{ order.get_status_display }})
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label fw-semibold">Notes <span class="text-muted fw-normal">(optional)</span></label>
+              <textarea name="notes" class="form-control" rows="2"
+                        placeholder="e.g. Used for batch washing, damaged, expired..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-danger w-100 py-2">
+              <i class="bi bi-dash-circle me-2"></i>Confirm Deduction
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  const currentStock = {{ item.current_stock }};
+  const unit = '{{ item.unit }}';
+  function updateDeductPreview() {
+    const qty = parseFloat(document.getElementById('deductQty').value) || 0;
+    const remaining = Math.max(0, Math.round((currentStock - qty) * 10000) / 10000);
+    document.getElementById('deductPreview').textContent = remaining + ' ' + unit;
+    document.getElementById('overStockWarning').classList.toggle('d-none', qty <= currentStock);
+  }
+  </script>
+
+
+{# ══════════════════════════════════════════════════════════════ #}
+{# SECTION: LOW STOCK ALERTS                                     #}
+{# ══════════════════════════════════════════════════════════════ #}
+{% elif section == 'low_stock' %}
+
+  <div class="mb-3">
+    <a href="{% url 'inventory_list' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back to Inventory
+    </a>
+  </div>
+
+  {% if low_stock_count > 0 %}
+  <div class="alert alert-danger d-flex align-items-center gap-3 mb-4 shadow-sm">
+    <i class="bi bi-exclamation-triangle-fill fs-3"></i>
+    <div>
+      <strong class="fs-6">⚠ {{ low_stock_count }} item{{ low_stock_count|pluralize }} below minimum stock level</strong>
+      <div class="small mt-1 opacity-75">Restock these items to avoid disrupting laundry operations.</div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    {% for item in low_stock_items %}
+    <div class="col-md-4 col-sm-6">
+      <div class="card h-100" style="border-top:3px solid {% if item.current_stock <= 0 %}#dc3545{% else %}#ffc107{% endif %}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h6 class="fw-bold mb-0">{{ item.name }}</h6>
+            <span class="badge bg-{{ item.stock_status.0 }}">{{ item.stock_status.1 }}</span>
+          </div>
+          <div class="text-muted small mb-3">{{ item.category.name|default:"Uncategorized" }}</div>
+
+          <div class="row g-2 text-center mb-3">
+            <div class="col-6">
+              <div class="p-2 rounded" style="background:#fff5f5">
+                <div class="fw-bold text-danger fs-5">{{ item.current_stock }}</div>
+                <div class="text-muted" style="font-size:.7rem">Current ({{ item.unit }})</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 rounded" style="background:#f8f9fa">
+                <div class="fw-bold text-secondary fs-5">{{ item.minimum_stock }}</div>
+                <div class="text-muted" style="font-size:.7rem">Minimum ({{ item.unit }})</div>
+              </div>
+            </div>
+          </div>
+
+          {# Stock bar #}
+          {% if item.minimum_stock > 0 %}
+          <div class="progress mb-3" style="height:6px">
+            {% with pct=item.current_stock|floatformat:0 %}
+            <div class="progress-bar {% if item.current_stock <= 0 %}bg-danger{% else %}bg-warning{% endif %}"
+                 style="width:{% if item.minimum_stock > 0 %}{% widthratio item.current_stock item.minimum_stock 100 %}{% else %}0{% endif %}%">
+            </div>
+            {% endwith %}
+          </div>
+          {% endif %}
+
+          <a href="{% url 'restock_item' item.id %}" class="btn btn-success btn-sm w-100">
+            <i class="bi bi-plus-circle me-1"></i>Restock Now
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="card">
+    <div class="card-body text-center py-5">
+      <i class="bi bi-check-circle-fill text-success" style="font-size:3rem"></i>
+      <h5 class="mt-3 text-success">All items are sufficiently stocked ✓</h5>
+      <p class="text-muted">No inventory items are below their minimum stock levels.</p>
+      <a href="{% url 'inventory_list' %}" class="btn btn-outline-primary">View Inventory</a>
+    </div>
+  </div>
+  {% endif %}
+
+
+{# ══════════════════════════════════════════════════════════════ #}
+{# SECTION: HISTORY — Full Stock Movement Log                   #}
+{# ══════════════════════════════════════════════════════════════ #}
+{% elif section == 'history' %}
+
+  <div class="mb-3">
+    <a href="{% url 'inventory_list' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back to Inventory
+    </a>
+  </div>
+
+  {# Filter Bar #}
+  <form method="get" class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-2">
+          <select name="type" class="form-select form-select-sm">
+            <option value="">All Types</option>
+            <option value="RESTOCK"    {% if type_filter == 'RESTOCK'    %}selected{% endif %}>Restock</option>
+            <option value="DEDUCT"     {% if type_filter == 'DEDUCT'     %}selected{% endif %}>Deduction</option>
+            <option value="ADJUSTMENT" {% if type_filter == 'ADJUSTMENT' %}selected{% endif %}>Adjustment</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}">
+        </div>
+        <div class="col-md-2">
+          <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to }}">
+        </div>
+        <div class="col-md-3">
+          <select name="staff" class="form-select form-select-sm">
+            <option value="">All Staff</option>
+            {% for u in staff_users %}
+            <option value="{{ u.id }}" {% if staff_filter == u.id|stringformat:"i" %}selected{% endif %}>
+              {{ u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button class="btn btn-primary btn-sm flex-fill">Filter</button>
+          <a href="{% url 'stock_history' %}" class="btn btn-outline-secondary btn-sm flex-fill">Clear</a>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong>Stock Movements</strong>
+      <span class="badge bg-secondary">{{ movement_count }} record{{ movement_count|pluralize }}</span>
+    </div>
+    <div class="card-body p-0 table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Date &amp; Time</th>
+            <th>Item</th>
+            <th>Type</th>
+            <th class="text-end">Quantity</th>
+            <th>Order Ref.</th>
+            <th>Notes</th>
+            <th>Staff</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in movements %}
+          <tr>
+            <td class="text-muted small">{{ m.created_at|date:"M d, Y h:i A" }}</td>
+            <td>
+              <a href="{% url 'inventory_detail' m.item.id %}" class="fw-semibold text-decoration-none">
+                {{ m.item.name }}
+              </a>
+              <small class="text-muted d-block">{{ m.item.unit }}</small>
+            </td>
+            <td>
+              {% if m.movement_type == 'RESTOCK' %}
+              <span class="badge bg-success">Restock</span>
+              {% elif m.movement_type == 'DEDUCT' %}
+              <span class="badge bg-danger">Deduct</span>
+              {% else %}
+              <span class="badge bg-primary">Adjustment</span>
+              {% endif %}
+            </td>
+            <td class="text-end fw-bold
+              {% if m.movement_type == 'RESTOCK' %}text-success{% else %}text-danger{% endif %}">
+              {% if m.movement_type == 'RESTOCK' %}+{% else %}-{% endif %}{{ m.quantity }}
+            </td>
+            <td>
+              {% if m.reference_order %}
+              <a href="{% url 'order_receipt' m.reference_order.id %}" class="small">
+                #{{ m.reference_order.id }} {{ m.reference_order.customer.name }}
+              </a>
+              {% else %}
+              <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td class="text-muted small">{{ m.notes|default:"—"|truncatechars:50 }}</td>
+            <td class="text-muted small">{{ m.performed_by.username|default:"System" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-center text-muted py-4">No movements found</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+      <small class="text-muted">{{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ movement_count }}</small>
+      <nav><ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_obj.previous_page_number }})">&laquo;</a></li>
+        {% endif %}
+        {% for n in page_obj.paginator.page_range %}
+          {% if page_obj.number == n %}
+          <li class="page-item active"><span class="page-link">{{ n }}</span></li>
+          {% elif n > page_obj.number|add:"-3" and n < page_obj.number|add:"3" %}
+          <li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage({{ n }})">{{ n }}</a></li>
+          {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_obj.next_page_number }})">&raquo;</a></li>
+        {% endif %}
+      </ul></nav>
+    </div>
+    {% endif %}
+  </div>
+
+  <script>
+  function goToPage(p) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('page', p); window.location.search = params.toString();
+  }
+  </script>
+
+
+{# ══════════════════════════════════════════════════════════════ #}
+{# SECTION: ADD — New Inventory Item Form                        #}
+{# ══════════════════════════════════════════════════════════════ #}
+{% elif section == 'add' %}
+
+  <div class="mb-3">
+    <a href="{% url 'inventory_list' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back to Inventory
+    </a>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-md-7">
+      <div class="card">
+        <div class="card-header">
+          <strong><i class="bi bi-plus-circle-fill text-success me-2"></i>Add New Inventory Item</strong>
+        </div>
+        <div class="card-body">
+          <form method="POST" action="{% url 'add_inventory_item' %}">
+            {% csrf_token %}
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Item Name <span class="text-danger">*</span></label>
+              <input type="text" name="name" class="form-control"
+                     placeholder="e.g. Liquid Detergent, Plastic Bag (Large)" required autofocus>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Category</label>
+                <select name="category" class="form-select" id="categorySelect"
+                        onchange="toggleNewCat()">
+                  <option value="">— No Category —</option>
+                  {% for cat in categories %}
+                  <option value="{{ cat.id }}">{{ cat.name }}</option>
+                  {% endfor %}
+                  <option value="__new__">+ Create New Category</option>
+                </select>
+              </div>
+              <div class="col-md-6" id="newCatDiv" style="display:none">
+                <label class="form-label fw-semibold">New Category Name</label>
+                <input type="text" name="new_category_name" class="form-control"
+                       placeholder="e.g. Detergents">
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Unit <span class="text-danger">*</span></label>
+                <select name="unit" class="form-select">
+                  {% for val, label in unit_choices %}
+                  <option value="{{ val }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Unit Cost (₱)</label>
+                <div class="input-group">
+                  <span class="input-group-text">₱</span>
+                  <input type="number" step="0.01" min="0" name="unit_cost"
+                         class="form-control" placeholder="0.00" value="0">
+                </div>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Opening Stock</label>
+                <input type="number" step="0.01" min="0" name="current_stock"
+                       class="form-control" placeholder="0" value="0">
+                <div class="form-text">Current quantity on hand</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Minimum Stock</label>
+                <input type="number" step="0.01" min="0" name="minimum_stock"
+                       class="form-control" placeholder="0" value="0">
+                <div class="form-text">Alert threshold for low-stock warnings</div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100 py-2">
+              <i class="bi bi-check-lg me-2"></i>Add to Inventory
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  function toggleNewCat() {
+    const sel = document.getElementById('categorySelect');
+    const div = document.getElementById('newCatDiv');
+    div.style.display = sel.value === '__new__' ? 'block' : 'none';
+    if (sel.value === '__new__') sel.value = '';
+  }
+  </script>
+
+{% endif %}
+{# ══ End of all sections ══ #}
+
+{% endblock %}

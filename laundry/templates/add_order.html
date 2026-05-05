@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% block title %}New Order{% endblock %}
+{% block page_title %}New Order{% endblock %}
+
+{% block content %}
+{% load laundry_filters %}
+
+<div class="row g-4">
+
+  <!-- Left: Form -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header"><strong><i class="bi bi-plus-circle me-2"></i>Order Details</strong></div>
+      <div class="card-body">
+        <form method="POST" id="orderForm">
+          {% csrf_token %}
+
+          <!-- Customer -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Customer</label>
+            <select name="customer" id="customerSelect" class="form-select" required onchange="updateSummary()">
+              <option value="" disabled selected>— Select or search customer —</option>
+              {% for c in customers %}
+              <option value="{{ c.id }}">{{ c.name }} · {{ c.contact }}{% if c.is_walk_in %} · Walk-in{% endif %}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">
+              <a href="{% url 'add_customer' %}" target="_blank">
+                <i class="bi bi-plus me-1"></i>Register new customer
+              </a>
+            </div>
+          </div>
+
+          <!-- Service Type -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Service Type</label>
+            <div class="row g-2">
+              {% for val, label in service_choices %}
+              <div class="col-6">
+                <input type="radio" class="btn-check" name="service_type" id="svc_{{ val }}"
+                       value="{{ val }}" {% if val == 'WASH_DRY_FOLD' %}checked{% endif %}
+                       onchange="document.getElementById('summaryService').textContent='{{ label }}'">
+                <label class="btn btn-outline-secondary w-100 text-start" for="svc_{{ val }}"
+                       style="font-size:.82rem; padding:8px 12px">
+                  <i class="bi bi-check-circle-fill me-1 text-success d-none check-icon"></i>
+                  {{ label }}
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- Weight -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Weight (kg)</label>
+            <div class="input-group">
+              <input type="number" step="0.1" min="0.1" name="weight" id="weightInput"
+                     class="form-control" placeholder="e.g. 3.5" required oninput="updateSummary()">
+              <span class="input-group-text">kg</span>
+            </div>
+          </div>
+
+          <!-- Priority -->
+          <div class="mb-3">
+            <div class="form-check form-switch">
+              <input type="checkbox" name="priority" class="form-check-input"
+                     id="priorityToggle" role="switch" onchange="updateSummary()">
+              <label class="form-check-label fw-semibold" for="priorityToggle">
+                <span class="badge bg-danger me-1">RUSH</span> Priority Order
+                <small class="text-muted fw-normal">(ready ~2 hrs, +surcharge)</small>
+              </label>
+            </div>
+          </div>
+
+          <!-- Due Date -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              Due Date &amp; Time
+              <span class="text-muted fw-normal">(optional)</span>
+            </label>
+            <input type="datetime-local" name="due_date" class="form-control">
+          </div>
+
+          <!-- Assign Staff -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              Assign to Staff
+              <span class="text-muted fw-normal">(optional)</span>
+            </label>
+            <select name="assigned_to" class="form-select">
+              <option value="">— Unassigned —</option>
+              {% for staff in staff_users %}
+              <option value="{{ staff.id }}">{{ staff.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Special Instructions -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              Special Instructions
+              <span class="text-muted fw-normal">(optional)</span>
+            </label>
+            <textarea name="special_instructions" class="form-control" rows="2"
+                      placeholder="e.g. Separate whites, no fabric softener, gentle cycle..."></textarea>
+          </div>
+
+          <!-- Payment -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Initial Payment</label>
+            <input type="hidden" name="payment_method" value="CASH_AFTER_DELIVERY">
+            <select name="payment_status" class="form-select" id="paymentSelect"
+                    onchange="updateSummary()">
+              <option value="UNPAID">Unpaid — collect on pickup</option>
+              <option value="PAID">Paid — cash received now</option>
+            </select>
+          </div>
+
+          <div class="mb-4" id="amountDiv">
+            <label class="form-label fw-semibold">Amount Paid (₱)</label>
+            <div class="input-group">
+              <span class="input-group-text">₱</span>
+              <input type="number" step="0.01" min="0" name="amount_paid"
+                     class="form-control" id="amountPaidInput" placeholder="0.00">
+              <button type="button" class="btn btn-outline-secondary btn-sm"
+                      onclick="document.getElementById('amountPaidInput').value=document.getElementById('totalVal').dataset.raw">
+                Auto-fill
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 py-2">
+            <i class="bi bi-check-lg me-2"></i>Create Order &amp; Print Receipt
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Live Summary -->
+  <div class="col-lg-5">
+    <div class="card position-sticky" style="top:90px">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong><i class="bi bi-receipt me-2"></i>Order Summary</strong>
+        <span class="badge bg-primary" id="queueBadge">Today's queue loading...</span>
+      </div>
+      <div class="card-body">
+
+        <!-- Customer info line -->
+        <div class="mb-3 p-2 rounded-2 bg-light">
+          <small class="text-muted d-block">Customer</small>
+          <span id="summaryCustomer" class="fw-semibold">—</span>
+        </div>
+
+        <!-- Line items -->
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span class="text-muted small">Service</span>
+          <span id="summaryService" class="fw-semibold small">Wash, Dry &amp; Fold</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span class="text-muted small">Weight</span>
+          <span id="summaryWeight" class="fw-semibold small">— kg</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span class="text-muted small">Base ({{ config.price_per_kg|default:30 }} ₱/kg)</span>
+          <span id="summaryBase" class="small">₱0.00</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom" id="rushRow" style="display:none!important">
+          <span class="text-muted small text-danger">Rush Surcharge</span>
+          <span class="text-danger small">+₱{{ config.rush_surcharge|default:50 }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-3">
+          <span class="fw-bold">Total</span>
+          <span id="totalVal" class="fw-bold fs-5 text-success" data-raw="0">₱0.00</span>
+        </div>
+
+        <!-- Est pickup -->
+        <div class="rounded-2 p-2 mb-3" style="background:#f0fff8; font-size:.8rem">
+          <i class="bi bi-clock text-success me-1"></i>
+          Est. pickup: <strong id="pickupTime">—</strong>
+        </div>
+
+        <!-- Payment badge -->
+        <div id="payBadge" class="text-center">
+          <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2">
+            <i class="bi bi-clock me-1"></i>Payment on Pickup
+          </span>
+        </div>
+
+      </div>
+      <div class="card-footer text-muted small text-center">
+        <i class="bi bi-printer me-1"></i>A QR claim stub will be generated automatically
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const PRICE_PER_KG  = {{ config.price_per_kg|default:30 }};
+const RUSH_SURCHARGE = {{ config.rush_surcharge|default:50 }};
+
+const SERVICE_LABELS = {
+  {% for val, label in service_choices %}
+  '{{ val }}': '{{ label }}',
+  {% endfor %}
+};
+
+const CUSTOMER_NAMES = {
+  {% for c in customers %}
+  '{{ c.id }}': '{{ c.name }}',
+  {% endfor %}
+};
+
+function updateSummary() {
+  const weight    = parseFloat(document.getElementById('weightInput').value) || 0;
+  const isRush    = document.getElementById('priorityToggle').checked;
+  const base      = weight * PRICE_PER_KG;
+  const total     = base + (isRush ? RUSH_SURCHARGE : 0);
+  const customerId = document.getElementById('customerSelect').value;
+
+  // Update texts
+  document.getElementById('summaryWeight').textContent = weight > 0 ? weight.toFixed(1) + ' kg' : '— kg';
+  document.getElementById('summaryBase').textContent   = '₱' + base.toFixed(2);
+  document.getElementById('totalVal').textContent      = '₱' + total.toFixed(2);
+  document.getElementById('totalVal').dataset.raw      = total.toFixed(2);
+  document.getElementById('summaryCustomer').textContent = CUSTOMER_NAMES[customerId] || '—';
+
+  // Rush row
+  document.getElementById('rushRow').style.display = isRush ? 'flex' : 'none';
+
+  // Pickup time
+  const hrs = isRush ? 2 : 24;
+  const pickup = new Date(Date.now() + hrs * 3600000);
+  document.getElementById('pickupTime').textContent =
+    pickup.toLocaleDateString('en-PH', {month:'short', day:'numeric'}) + ', ' +
+    pickup.toLocaleTimeString('en-PH', {hour:'2-digit', minute:'2-digit'});
+
+  // Payment badge
+  const isPaid = document.getElementById('paymentSelect').value === 'PAID';
+  document.getElementById('payBadge').innerHTML = isPaid
+    ? '<span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2"><i class="bi bi-check-circle me-1"></i>Paid — ₱' + total.toFixed(2) + '</span>'
+    : '<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2"><i class="bi bi-clock me-1"></i>Payment on Pickup</span>';
+}
+
+function toggleAmountPaid() {
+  const paid = document.getElementById('paymentSelect').value === 'PAID';
+  document.getElementById('amountDiv').style.display = paid ? 'block' : 'none';
+}
+
+// Service radio visual highlight
+document.querySelectorAll('input[name="service_type"]').forEach(radio => {
+  radio.addEventListener('change', function() {
+    document.querySelectorAll('input[name="service_type"]').forEach(r => {
+      r.nextElementSibling.querySelector('.check-icon').classList.add('d-none');
+      r.nextElementSibling.classList.remove('btn-primary', 'text-white');
+    });
+    this.nextElementSibling.querySelector('.check-icon').classList.remove('d-none');
+    this.nextElementSibling.classList.add('btn-primary', 'text-white');
+    document.getElementById('summaryService').textContent = SERVICE_LABELS[this.value];
+    updateSummary();
+  });
+});
+
+// Init
+updateSummary();
+// Simulate queue badge
+document.getElementById('queueBadge').textContent = 'Queue will be assigned on submit';
+</script>
+{% endblock %}

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Smart Laundry{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --sb-bg: #0f2044;
+      --sb-hover: #1c3461;
+      --sb-active: #20c997;
+      --sb-text: rgba(255,255,255,.65);
+      --page-bg: #f0f4f8;
+      --accent: #20c997;
+    }
+    * { box-sizing: border-box; }
+    body { display: flex; min-height: 100vh; margin: 0; background: var(--page-bg); font-family: 'Segoe UI', system-ui, sans-serif; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 240px; background: var(--sb-bg); flex-shrink: 0;
+      display: flex; flex-direction: column;
+      position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    }
+    .sb-brand {
+      padding: 18px 16px; border-bottom: 1px solid rgba(255,255,255,.07);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .sb-brand .brand-box {
+      width: 36px; height: 36px; background: var(--accent);
+      border-radius: 8px; display: flex; align-items: center;
+      justify-content: center; font-size: 1.1rem; flex-shrink: 0;
+    }
+    .sb-brand span { color: white; font-weight: 700; font-size: 0.95rem; }
+    .sb-section { padding: 14px 10px 2px; }
+    .sb-label {
+      font-size: .6rem; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: rgba(255,255,255,.3);
+      padding: 0 8px; display: block; margin-bottom: 2px;
+    }
+    #sidebar a.sb-link {
+      display: flex; align-items: center; gap: 9px;
+      color: var(--sb-text); padding: 8px 12px; border-radius: 8px;
+      text-decoration: none; font-size: .85rem; margin-bottom: 1px;
+      transition: background .15s, color .15s;
+    }
+    #sidebar a.sb-link:hover { background: var(--sb-hover); color: #fff; }
+    #sidebar a.sb-link.active { background: var(--accent); color: #fff; }
+    #sidebar a.sb-link i { font-size: .95rem; width: 18px; }
+    .sb-footer {
+      margin-top: auto; padding: 14px 16px;
+      border-top: 1px solid rgba(255,255,255,.07);
+    }
+    .sb-user { color: rgba(255,255,255,.5); font-size: .7rem; }
+    .sb-username { color: #fff; font-weight: 600; font-size: .85rem; }
+
+    /* ── Main ── */
+    #main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .top-bar {
+      background: #fff; padding: 12px 28px;
+      border-bottom: 1px solid #e8ecf0;
+      display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0; z-index: 200;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .top-bar h5 { font-weight: 700; font-size: 1rem; color: #1a1a2e; }
+    .page-content { padding: 24px 28px; flex: 1; }
+
+    /* ── Cards ── */
+    .card { border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.07); }
+    .card-header {
+      background: #fff; border-bottom: 1px solid #f0f0f0;
+      border-radius: 12px 12px 0 0 !important;
+      padding: 14px 20px; font-size: .9rem;
+    }
+
+    /* ── KPI Cards ── */
+    .kpi { border-radius: 14px; overflow: hidden; padding: 20px; }
+    .kpi .kpi-val { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+    .kpi .kpi-label { font-size: .75rem; font-weight: 500; opacity: .8; margin-bottom: 6px; }
+    .kpi .kpi-icon { font-size: 2rem; opacity: .25; }
+    .kpi-primary   { background: linear-gradient(135deg,#0d6efd,#0a58ca); color:#fff; }
+    .kpi-teal      { background: linear-gradient(135deg,#20c997,#17a589); color:#fff; }
+    .kpi-warning   { background: linear-gradient(135deg,#ffc107,#e0a800); color:#fff; }
+    .kpi-success   { background: linear-gradient(135deg,#198754,#146c43); color:#fff; }
+    .kpi-danger    { background: linear-gradient(135deg,#dc3545,#b02a37); color:#fff; }
+    .kpi-purple    { background: linear-gradient(135deg,#6610f2,#520dc2); color:#fff; }
+
+    /* ── Tables ── */
+    .table th {
+      font-size: .7rem; text-transform: uppercase; letter-spacing: .6px;
+      color: #8a94a8; font-weight: 700; padding: 10px 14px;
+    }
+    .table td { padding: 10px 14px; vertical-align: middle; font-size: .85rem; }
+    .table-hover tbody tr:hover { background: #f8faff; }
+
+    /* ── Misc ── */
+    .badge { font-weight: 500; font-size: .72rem; }
+    .page-link { font-size: .8rem; }
+    a { color: #0d6efd; }
+
+    /* ── Mobile Nav ── */
+    @media (max-width: 768px) {
+      #sidebar { display: none; }
+      .page-content { padding: 70px 14px 20px; }
+      .mobile-nav { display: flex !important; }
+    }
+    .mobile-nav { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- Mobile Top Nav -->
+<nav class="navbar navbar-dark mobile-nav w-100 position-fixed" style="background:var(--sb-bg);z-index:999;top:0;">
+  <div class="container-fluid">
+    <span class="navbar-brand fw-bold">🧺 Smart Laundry</span>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mobileMenu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+  </div>
+  <div class="collapse w-100 px-3 pb-3" id="mobileMenu">
+    {% if is_admin %}
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Dashboard</a>
+    <a href="{% url 'kanban_board' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Kanban</a>
+    <a href="{% url 'customer_list' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Customers</a>
+    <a href="{% url 'reports' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Reports</a>
+    {% else %}
+    <a href="{% url 'delivery_tasks' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Dashboard</a>
+    <a href="{% url 'delivery_tasks' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Delivery Task</a>
+    <a href="{% url 'walkin_tasks' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Walk-in Task</a>
+    <a href="{% url 'add_order' %}" class="btn btn-outline-light btn-sm w-100 mb-1">New Order</a>
+    {% endif %}
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}
+      <button class="btn btn-danger btn-sm w-100 mt-2">Logout</button>
+    </form>
+  </div>
+</nav>
+
+<!-- Sidebar -->
+<div id="sidebar">
+  <div class="sb-brand">
+    <div class="brand-box">🧺</div>
+    <span>Smart Laundry</span>
+  </div>
+
+  {% if is_admin %}
+  <div class="sb-section">
+    <span class="sb-label">Overview</span>
+    <a href="{% url 'admin_dashboard' %}" class="sb-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
+      <i class="bi bi-speedometer2"></i> Dashboard
+    </a>
+    <a href="{% url 'kanban_board' %}" class="sb-link {% if request.resolver_match.url_name == 'kanban_board' %}active{% endif %}">
+      <i class="bi bi-kanban"></i> Kanban Board
+    </a>
+  </div>
+  <div class="sb-section">
+    <span class="sb-label">Operations</span>
+    <a href="{% url 'customer_list' %}" class="sb-link {% if request.resolver_match.url_name == 'customer_list' %}active{% endif %}">
+      <i class="bi bi-people"></i> Customers
+    </a>
+  </div>
+  <div class="sb-section">
+    <span class="sb-label">Admin</span>
+    <a href="{% url 'reports' %}" class="sb-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
+      <i class="bi bi-bar-chart-line"></i> Reports
+    </a>
+    <a href="{% url 'pricing_settings' %}" class="sb-link {% if request.resolver_match.url_name == 'pricing_settings' %}active{% endif %}">
+      <i class="bi bi-tags"></i> Pricing
+    </a>
+    <a href="{% url 'staff_list' %}" class="sb-link {% if request.resolver_match.url_name == 'staff_list' %}active{% endif %}">
+      <i class="bi bi-person-badge"></i> Staff
+    </a>
+    <a href="{% url 'inventory_list' %}" class="sb-link {% if 'inventory' in request.resolver_match.url_name or 'stock' in request.resolver_match.url_name or 'restock' in request.resolver_match.url_name or 'deduct' in request.resolver_match.url_name %}active{% endif %}">
+      <i class="bi bi-boxes"></i> Inventory
+    </a>
+    <a href="{% url 'service_inventory_usage' %}" class="sb-link {% if request.resolver_match.url_name == 'service_inventory_usage' %}active{% endif %}">
+      <i class="bi bi-diagram-3"></i> Service Usage
+    </a>
+    <a href="/admin/" class="sb-link">
+      <i class="bi bi-gear"></i> Django Admin
+    </a>
+  </div>
+  {% else %}
+  <div class="sb-section">
+    <span class="sb-label">Menu</span>
+    <a href="{% url 'delivery_tasks' %}" class="sb-link">
+      <i class="bi bi-speedometer2"></i> Dashboard
+    </a>
+    <a href="{% url 'delivery_tasks' %}" class="sb-link {% if request.resolver_match.url_name == 'delivery_tasks' %}active{% endif %}">
+      <i class="bi bi-truck"></i> Delivery Task
+    </a>
+    <a href="{% url 'walkin_tasks' %}" class="sb-link {% if request.resolver_match.url_name == 'walkin_tasks' %}active{% endif %}">
+      <i class="bi bi-shop"></i> Walk-in Task
+    </a>
+    <a href="{% url 'add_order' %}" class="sb-link {% if request.resolver_match.url_name == 'add_order' %}active{% endif %}">
+      <i class="bi bi-plus-circle"></i> New Order
+    </a>
+    <a href="{% url 'customer_list' %}" class="sb-link {% if request.resolver_match.url_name == 'customer_list' %}active{% endif %}">
+      <i class="bi bi-people"></i> Customers
+    </a>
+    <a href="{% url 'inventory_list' %}" class="sb-link {% if 'inventory' in request.resolver_match.url_name or 'stock' in request.resolver_match.url_name or 'restock' in request.resolver_match.url_name or 'deduct' in request.resolver_match.url_name %}active{% endif %}">
+      <i class="bi bi-boxes"></i> Inventory
+    </a>
+  </div>
+  {% endif %}
+
+  <div class="sb-footer">
+    <div class="sb-user">Logged in as</div>
+    <div class="sb-username">{{ request.user.username }}</div>
+    <span class="badge mt-1 {% if is_admin %}bg-danger{% else %}bg-primary{% endif %}">
+      {% if is_admin %}Admin{% else %}Staff{% endif %}
+    </span>
+    <form method="post" action="{% url 'logout' %}" class="mt-2">{% csrf_token %}
+      <button class="btn btn-sm btn-outline-light w-100">
+        <i class="bi bi-box-arrow-right me-1"></i>Logout
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div id="main">
+  <div class="top-bar">
+    <h5 class="mb-0">{% block page_title %}Dashboard{% endblock %}</h5>
+    <div class="d-flex align-items-center gap-2">
+      {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} py-1 px-3 mb-0 small alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="page-content">
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

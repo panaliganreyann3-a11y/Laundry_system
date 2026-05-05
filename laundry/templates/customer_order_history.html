@@ -1,0 +1,33 @@
+{% extends 'customer_base.html' %}
+{% load laundry_filters %}
+{% block title %}My Orders{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="fw-bold mb-0">My Orders</h3>
+  <a href="{% url 'customer_new_order' %}" class="btn btn-primary btn-sm">Request Pickup</a>
+</div>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr><th>#</th><th>Service</th><th>Status</th><th>Pickup</th><th>Total</th><th>Payment</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for order in orders %}
+        <tr>
+          <td>{{ order.id }}</td>
+          <td>{{ order.get_service_type_display }}</td>
+          <td><span class="badge bg-{{ order.status_badge_color }}">{{ order.get_status_display }}</span></td>
+          <td class="text-muted small">{{ order.preferred_pickup_at|date:"M d, h:i A"|default:"-" }}</td>
+          <td>{{ order.total_amount|peso }}</td>
+          <td>{{ order.get_payment_status_display }}</td>
+          <td><a href="{% url 'customer_order_detail' order.id %}" class="btn btn-sm btn-outline-secondary">Details</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-4">No orders yet</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

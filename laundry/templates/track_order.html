@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Track My Order — Smart Laundry</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+
+      <!-- Header -->
+      <div class="text-center mb-4">
+        <div style="font-size: 3rem;">🧺</div>
+        <h3>Smart Laundry</h3>
+        <p class="text-muted">Track your laundry order</p>
+      </div>
+
+      <!-- Search Form -->
+      <div class="card shadow mb-4">
+        <div class="card-body">
+          <form method="post">
+            {% csrf_token %}
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input
+                type="number" name="order_id"
+                class="form-control form-control-lg"
+                placeholder="Enter your Order ID (e.g. 12)"
+                value="{{ request.POST.order_id }}"
+                required
+              >
+              <button class="btn btn-primary" type="submit">Track</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Error -->
+      {% if error %}
+      <div class="alert alert-danger">
+        <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+      </div>
+      {% endif %}
+
+      <!-- Result -->
+      {% if order %}
+      <div class="card shadow">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <strong>Order #{{ order.id }}</strong>
+          <span class="badge bg-{{ order.status_badge_color }} px-3 py-2">
+            {{ order.get_status_display }}
+          </span>
+        </div>
+        <div class="card-body">
+
+          <!-- Progress Bar -->
+          {% with order.status as s %}
+          <div class="mb-4">
+            <div class="d-flex justify-content-between text-center mb-1" style="font-size:0.75rem;">
+              <span>Received</span>
+              <span>Washing</span>
+              <span>Drying</span>
+              <span>Ready</span>
+              <span>Claimed</span>
+            </div>
+            <div class="progress" style="height: 12px;">
+              <div class="progress-bar bg-primary" style="width:
+                {% if s == 'RECEIVED_AT_SHOP' %}25%
+                {% elif s == 'WEIGHED' %}35%
+                {% elif s == 'BILL_SENT' %}45%
+                {% elif s == 'PROCESSING' %}65%
+                {% elif s == 'READY_FOR_PICKUP' or s == 'READY_FOR_DELIVERY' %}80%
+                {% elif s == 'OUT_FOR_DELIVERY' %}90%
+                {% elif s == 'COMPLETED' %}100%
+                {% endif %}
+              "></div>
+            </div>
+          </div>
+          {% endwith %}
+
+          <!-- Details -->
+          <table class="table table-borderless table-sm">
+            <tr>
+              <td class="text-muted">Customer</td>
+              <td><strong>{{ order.customer.name }}</strong></td>
+            </tr>
+            <tr>
+              <td class="text-muted">Service</td>
+              <td>{{ order.get_service_type_display }}</td>
+            </tr>
+            <tr>
+              <td class="text-muted">Weight</td>
+              <td>{{ order.weight }} kg</td>
+            </tr>
+            <tr>
+              <td class="text-muted">Total</td>
+              <td><strong class="text-success">₱{{ order.total_amount }}</strong></td>
+            </tr>
+            <tr>
+              <td class="text-muted">Priority</td>
+              <td>
+                {% if order.is_priority %}
+                  <span class="badge bg-danger">RUSH</span>
+                {% else %}
+                  Standard
+                {% endif %}
+              </td>
+            </tr>
+            {% if order.estimated_pickup %}
+            <tr>
+              <td class="text-muted">Est. Pickup</td>
+              <td>
+                <strong>{{ order.estimated_pickup|date:"M d, Y h:i A" }}</strong>
+              </td>
+            </tr>
+            {% endif %}
+          </table>
+
+          {% if order.status == 'READY_FOR_PICKUP' or order.status == 'READY_FOR_DELIVERY' %}
+          <div class="alert alert-success mt-2">
+            <i class="bi bi-check-circle me-2"></i>
+            Your laundry is ready for pickup! 🎉
+          </div>
+          {% elif order.status == 'COMPLETED' %}
+          <div class="alert alert-secondary mt-2">
+            <i class="bi bi-bag-check me-2"></i>
+            This order has been claimed. Thank you!
+          </div>
+          {% else %}
+          <div class="alert alert-info mt-2">
+            <i class="bi bi-clock me-2"></i>
+            We're working on your laundry. Check back soon!
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="text-center mt-4">
+        <small class="text-muted">Smart Laundry © 2025</small>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

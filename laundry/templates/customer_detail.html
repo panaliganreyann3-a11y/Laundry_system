@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block title %}{{ customer.name }}{% endblock %}
+{% block page_title %}Customer Profile{% endblock %}
+
+{% block content %}
+{% load laundry_filters %}
+
+<div class="row g-4">
+
+  <!-- Profile Card -->
+  <div class="col-md-4">
+    <div class="card mb-3">
+      <div class="card-body text-center py-4">
+        <!-- Avatar -->
+        <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
+             style="width:72px;height:72px;background:linear-gradient(135deg,#0d6efd,#20c997);font-size:1.8rem;color:white;font-weight:700">
+          {{ customer.name|first|upper }}
+        </div>
+        <h5 class="mb-1">{{ customer.name }}</h5>
+        {% if customer.is_walk_in %}
+        <span class="badge bg-secondary mb-2">Walk-in</span>
+        {% else %}
+        <span class="badge bg-success mb-2">Regular Customer</span>
+        {% endif %}
+
+        <!-- Loyalty Points -->
+        {% if customer.loyalty_points > 0 %}
+        <div class="mb-3">
+          <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+            <i class="bi bi-star-fill me-1"></i>{{ customer.loyalty_points }} loyalty pts
+          </span>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Contact Info -->
+      <ul class="list-group list-group-flush">
+        <li class="list-group-item d-flex align-items-center gap-2 py-2">
+          <i class="bi bi-telephone text-muted"></i>
+          <span>{{ customer.contact }}</span>
+        </li>
+        {% if customer.email %}
+        <li class="list-group-item d-flex align-items-center gap-2 py-2">
+          <i class="bi bi-envelope text-muted"></i>
+          <span>{{ customer.email }}</span>
+        </li>
+        {% endif %}
+        {% if customer.address %}
+        <li class="list-group-item d-flex align-items-start gap-2 py-2">
+          <i class="bi bi-geo-alt text-muted mt-1"></i>
+          <span>{{ customer.address }}</span>
+        </li>
+        {% endif %}
+        {% if customer.notes %}
+        <li class="list-group-item py-2">
+          <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-sticky text-muted mt-1"></i>
+            <span class="text-muted small">{{ customer.notes }}</span>
+          </div>
+        </li>
+        {% endif %}
+        <li class="list-group-item py-2">
+          <small class="text-muted">Customer since {{ customer.created_at|date:"M d, Y" }}</small>
+        </li>
+      </ul>
+
+      <!-- Stats -->
+      <div class="card-body">
+        <div class="row g-2 text-center">
+          <div class="col-6">
+            <div class="p-2 rounded-2" style="background:#f0f7ff">
+              <div class="fw-bold text-primary">{{ customer.total_orders }}</div>
+              <small class="text-muted">Orders</small>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-2 rounded-2" style="background:#f0fff7">
+              <div class="fw-bold text-success">{{ customer.total_spent|peso }}</div>
+              <small class="text-muted">Total Spent</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="card-footer d-flex gap-2">
+        <a href="{% url 'add_order' %}?customer={{ customer.id }}" class="btn btn-primary btn-sm flex-fill">
+          <i class="bi bi-plus-lg me-1"></i>New Order
+        </a>
+        <a href="{% url 'edit_customer' customer.id %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-pencil"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Order History -->
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>Order History</strong>
+        <span class="badge bg-secondary">{{ orders.count }} orders</span>
+      </div>
+      <div class="card-body p-0 table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Service</th>
+              <th>Weight</th>
+              <th>Price</th>
+              <th>Status</th>
+              <th>Payment</th>
+              <th>Date</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for order in orders %}
+            <tr>
+              <td class="text-muted small">
+                {{ order.id }}
+                {% if order.is_priority %}<span class="badge bg-danger ms-1" style="font-size:.6rem">RUSH</span>{% endif %}
+              </td>
+              <td><small>{{ order.get_service_type_display }}</small></td>
+              <td>{{ order.weight }} kg</td>
+              <td class="fw-semibold">{{ order.total_amount|peso }}</td>
+              <td>
+                <span class="badge bg-{{ order.status_badge_color }}">{{ order.get_status_display }}</span>
+              </td>
+              <td>
+                {% if order.payment_status == 'PAID' %}
+                <span class="badge bg-success-subtle text-success border">Paid</span>
+                {% else %}
+                <span class="badge bg-danger-subtle text-danger border">Unpaid</span>
+                {% endif %}
+              </td>
+              <td class="text-muted small">{{ order.created_at|date:"M d, Y" }}</td>
+              <td>
+                <a href="{% url 'order_receipt' order.id %}" class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-printer"></i>
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center text-muted py-4">No orders yet</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

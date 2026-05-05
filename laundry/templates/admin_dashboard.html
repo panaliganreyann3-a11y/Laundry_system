@@ -1,0 +1,396 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block page_title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+{% load laundry_filters %}
+
+<!-- KPI Cards — Today's Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md">
+    <div class="kpi kpi-primary d-flex justify-content-between align-items-start">
+      <div>
+        <div class="kpi-label">Today's Orders</div>
+        <div class="kpi-val">{{ today_stats.total }}</div>
+      </div>
+      <i class="bi bi-receipt kpi-icon"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md">
+    <div class="kpi kpi-warning d-flex justify-content-between align-items-start">
+      <div>
+        <div class="kpi-label">Pending</div>
+        <div class="kpi-val">{{ today_stats.pending }}</div>
+      </div>
+      <i class="bi bi-hourglass kpi-icon"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md">
+    <div class="kpi kpi-purple d-flex justify-content-between align-items-start">
+      <div>
+        <div class="kpi-label">In Progress</div>
+        <div class="kpi-val">{{ today_stats.in_progress }}</div>
+      </div>
+      <i class="bi bi-arrow-repeat kpi-icon"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md">
+    <div class="kpi kpi-success d-flex justify-content-between align-items-start">
+      <div>
+        <div class="kpi-label">Ready for Pickup</div>
+        <div class="kpi-val">{{ today_stats.ready }}</div>
+      </div>
+      <i class="bi bi-bag-check kpi-icon"></i>
+    </div>
+  </div>
+  <div class="col-12 col-md">
+    <div class="kpi kpi-teal d-flex justify-content-between align-items-start">
+      <div>
+        <div class="kpi-label">Today's Revenue</div>
+        <div class="kpi-val" style="font-size:1.4rem">{{ today_stats.revenue|peso }}</div>
+      </div>
+      <i class="bi bi-cash-stack kpi-icon"></i>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-4">
+  <div class="col-md-8">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>Weekly Order Volume</strong>
+        <a href="{% url 'reports' %}" class="btn btn-sm btn-outline-secondary">Full Report</a>
+      </div>
+      <div class="card-body">
+        <canvas id="weekChart" height="90"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><strong>Service Breakdown</strong></div>
+      <div class="card-body d-flex align-items-center justify-content-center">
+        <canvas id="serviceChart" style="max-height:200px"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Activity Feed -->
+<div class="row g-3 mb-4">
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>Recent Orders</strong>
+        <a href="{% url 'kanban_board' %}" class="btn btn-sm btn-outline-primary">View Board</a>
+      </div>
+      <div class="list-group list-group-flush">
+        {% for o in recent_orders %}
+        <div class="list-group-item px-4 py-3">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold" style="font-size:.85rem">
+                #{{ o.id }} — {{ o.customer.name }}
+              </div>
+              <small class="text-muted">{{ o.get_service_type_display }} · {{ o.weight }}kg · {{ o.total_amount|peso }}</small>
+            </div>
+            <span class="badge bg-{{ o.status_badge_color }} ms-2">{{ o.get_status_display }}</span>
+          </div>
+          <small class="text-muted">{{ o.created_at|timesince }} ago</small>
+        </div>
+        {% empty %}
+        <div class="list-group-item text-muted text-center py-3">No orders today</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Stats -->
+  <div class="col-md-7">
+    <div class="card h-100">
+      <div class="card-header"><strong>All-Time Summary</strong></div>
+      <div class="card-body">
+        <div class="row g-3 text-center">
+          <div class="col-6">
+            <div class="p-3 rounded-3" style="background:#f0f7ff">
+              <div class="fw-bold fs-4 text-primary">{{ total_orders }}</div>
+              <div class="text-muted small">Total Orders</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-3 rounded-3" style="background:#f0fff7">
+              <div class="fw-bold fs-4 text-success">{{ total_revenue|peso }}</div>
+              <div class="text-muted small">Total Revenue</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-3 rounded-3" style="background:#fff8f0">
+              <div class="fw-bold fs-4 text-warning">{{ total_customers }}</div>
+              <div class="text-muted small">Customers</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-3 rounded-3" style="background:#fff0f0">
+              <div class="fw-bold fs-4 text-danger">{{ unpaid_orders }}</div>
+              <div class="text-muted small">Unpaid · {{ unpaid_revenue|peso }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<form method="get" class="card mb-3" id="filterForm">
+  <div class="card-body py-2">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <input type="text" name="search" class="form-control form-control-sm"
+               placeholder="Search customer..." value="{{ search }}">
+      </div>
+      <div class="col-md-2">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">All Status</option>
+          {% for value, label in status_choices %}
+          <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="priority" class="form-select form-select-sm">
+          <option value="">All Priority</option>
+          <option value="rush"     {% if priority_filter == 'rush'     %}selected{% endif %}>Rush</option>
+          <option value="standard" {% if priority_filter == 'standard' %}selected{% endif %}>Standard</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="order_type" class="form-select form-select-sm">
+          <option value="">All Types</option>
+          {% for value, label in order_type_choices %}
+          <option value="{{ value }}" {% if order_type_filter == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="date" class="form-select form-select-sm">
+          <option value="">All Time</option>
+          <option value="today" {% if date_filter == 'today' %}selected{% endif %}>Today</option>
+          <option value="week"  {% if date_filter == 'week'  %}selected{% endif %}>This Week</option>
+          <option value="month" {% if date_filter == 'month' %}selected{% endif %}>This Month</option>
+        </select>
+      </div>
+      <div class="col-md-1 d-flex gap-2">
+        <button class="btn btn-primary btn-sm flex-fill">Filter</button>
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary btn-sm flex-fill">Clear</a>
+        <a href="{% url 'export_csv' %}" class="btn btn-outline-success btn-sm" title="Export CSV">
+          <i class="bi bi-download"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+</form>
+
+<!-- Tab Nav -->
+<ul class="nav nav-tabs mb-0" style="border-bottom:none">
+  <li class="nav-item">
+    <a class="nav-link {% if not tab %}active{% endif %}" href="?{% if search %}search={{ search }}&{% endif %}tab=">All</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab == 'pending' %}active{% endif %}" href="?tab=pending">Pending</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab == 'in_progress' %}active{% endif %}" href="?tab=in_progress">In Progress</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab == 'ready' %}active{% endif %}" href="?tab=ready">Ready</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab == 'pickup' %}active{% endif %}" href="?tab=pickup">Pickup</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab == 'delivery' %}active{% endif %}" href="?tab=delivery">Delivery</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab == 'delivered' %}active{% endif %}" href="?tab=delivered">Delivered</a>
+  </li>
+</ul>
+
+<!-- Orders Table -->
+<form method="post" action="{% url 'bulk_update_status' %}" id="bulkForm">
+  {% csrf_token %}
+  <div class="card" style="border-radius:0 12px 12px 12px">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <strong>Orders</strong>
+        <span class="badge bg-secondary">{{ total_orders }}</span>
+      </div>
+      <div id="bulkBar" class="d-none d-flex align-items-center gap-2">
+        <small id="selCount" class="text-muted"></small>
+        <select name="bulk_action" class="form-select form-select-sm" style="width:auto">
+          <option value="advance">→ Advance Status</option>
+          <option value="mark_paid">Mark Paid</option>
+        </select>
+        <button type="submit" class="btn btn-sm btn-warning">Apply</button>
+      </div>
+    </div>
+    <div class="card-body p-0 table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:36px"><input type="checkbox" id="selAll" class="form-check-input"></th>
+            <th>#</th>
+            <th>Queue</th>
+            <th>Customer</th>
+            <th>Type</th>
+            <th>Service</th>
+            <th>Weight</th>
+            <th>Price</th>
+            <th>Est. Pickup</th>
+            <th>Status</th>
+            <th>Pay</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orders %}
+          <tr>
+            <td><input type="checkbox" name="order_ids" value="{{ o.id }}" class="order-cb form-check-input"></td>
+            <td class="text-muted">{{ o.id }}</td>
+            <td><span class="badge bg-light text-dark border">Q{{ o.queue_number }}</span></td>
+            <td>
+              <a href="{% url 'customer_detail' o.customer.id %}" class="fw-semibold text-decoration-none">{{ o.customer.name }}</a>
+              {% if o.is_priority %}<span class="badge bg-danger ms-1">RUSH</span>{% endif %}
+            </td>
+            <td>
+              {% if o.order_type == 'PICKUP_DELIVERY' %}
+              <span class="badge bg-info-subtle text-info border border-info-subtle">Pickup</span>
+              {% else %}
+              <span class="badge bg-secondary-subtle text-secondary border">Walk-in</span>
+              {% endif %}
+            </td>
+            <td><small class="text-muted">{{ o.get_service_type_display }}</small></td>
+            <td>{{ o.weight }} kg</td>
+            <td class="fw-semibold">{{ o.total_amount|peso }}</td>
+            <td>
+              {% if o.estimated_pickup %}
+              <small class="text-muted">{{ o.estimated_pickup|date:"M d, h:i A" }}</small>
+              {% else %}—{% endif %}
+            </td>
+            <td><span class="badge bg-{{ o.status_badge_color }}">{{ o.get_status_display }}</span></td>
+            <td>
+              {% if o.payment_status == 'PAID' %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Paid</span>
+              {% else %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Unpaid</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="d-flex gap-1 flex-nowrap">
+                {% if o.get_next_status %}
+                <a href="{% url 'update_status' o.id %}" class="btn btn-sm btn-outline-primary confirm-btn"
+                   data-msg="Move Order #{{ o.id }} to {{ o.get_next_status }}?">
+                  <i class="bi bi-arrow-right-short"></i>
+                </a>
+                {% endif %}
+                {% if o.payment_status == 'UNPAID' %}
+                <a href="{% url 'mark_paid' o.id %}" class="btn btn-sm btn-outline-success confirm-btn"
+                   data-msg="Mark #{{ o.id }} as paid?">
+                  <i class="bi bi-cash"></i>
+                </a>
+                {% endif %}
+                <a href="{% url 'order_receipt' o.id %}" class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-printer"></i>
+                </a>
+                <a href="{% url 'edit_order' o.id %}" class="btn btn-sm btn-outline-warning">
+                  <i class="bi bi-pencil"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="12" class="text-center text-muted py-5">No orders found</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+      <small class="text-muted">{{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</small>
+      <nav><ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_obj.previous_page_number }})">&laquo;</a></li>
+        {% endif %}
+        {% for n in page_obj.paginator.page_range %}
+          {% if page_obj.number == n %}
+          <li class="page-item active"><span class="page-link">{{ n }}</span></li>
+          {% elif n > page_obj.number|add:"-3" and n < page_obj.number|add:"3" %}
+          <li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage({{ n }})">{{ n }}</a></li>
+          {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_obj.next_page_number }})">&raquo;</a></li>
+        {% endif %}
+      </ul></nav>
+    </div>
+    {% endif %}
+  </div>
+</form>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Weekly bar chart
+  new Chart(document.getElementById('weekChart'), {
+    type: 'bar',
+    data: {
+      labels: {{ week_labels|safe }},
+      datasets: [
+        { label: 'Revenue (₱)', data: {{ week_revenue|safe }}, backgroundColor: 'rgba(32,201,151,.25)', borderColor: '#20c997', borderWidth: 2, yAxisID: 'y', type: 'line', tension: 0.4, fill: true },
+        { label: 'Orders', data: {{ week_orders|safe }}, backgroundColor: 'rgba(13,110,253,.7)', borderRadius: 6, yAxisID: 'y1' }
+      ]
+    },
+    options: {
+      plugins: { legend: { display: true, position: 'top' } },
+      scales: {
+        y:  { type: 'linear', position: 'left',  title: { display: true, text: 'Revenue (₱)' } },
+        y1: { type: 'linear', position: 'right', title: { display: true, text: 'Orders' }, grid: { drawOnChartArea: false } }
+      }
+    }
+  });
+
+  // Service donut chart
+  new Chart(document.getElementById('serviceChart'), {
+    type: 'doughnut',
+    data: {
+      labels: {{ service_labels|safe }},
+      datasets: [{ data: {{ service_data|safe }}, backgroundColor: ['#0d6efd','#20c997','#ffc107','#dc3545','#6610f2','#17a2b8','#fd7e14'] }]
+    },
+    options: { plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } }, cutout: '60%' }
+  });
+
+  // Confirm buttons
+  document.querySelectorAll('.confirm-btn').forEach(b => {
+    b.addEventListener('click', e => { if (!confirm(b.dataset.msg)) e.preventDefault(); });
+  });
+
+  // Select all / bulk bar
+  document.getElementById('selAll').addEventListener('change', function() {
+    document.querySelectorAll('.order-cb').forEach(c => c.checked = this.checked);
+    updateBulk();
+  });
+  document.querySelectorAll('.order-cb').forEach(c => c.addEventListener('change', updateBulk));
+  function updateBulk() {
+    const n = document.querySelectorAll('.order-cb:checked').length;
+    document.getElementById('bulkBar').classList.toggle('d-none', n === 0);
+    document.getElementById('selCount').textContent = n + ' selected';
+  }
+  function goToPage(p) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('page', p);
+    window.location.search = params.toString();
+  }
+</script>
+{% endblock %}

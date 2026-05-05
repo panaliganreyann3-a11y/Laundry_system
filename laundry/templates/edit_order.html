@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+{% load laundry_filters %}
+{% block title %}Edit Order #{{ order.id }}{% endblock %}
+{% block page_title %}Edit Order #{{ order.id }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card shadow">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>✏️ Edit Order #{{ order.id }} — {{ order.customer.name }}</strong>
+        {% if is_admin %}
+        <button class="btn btn-sm btn-outline-danger"
+                data-bs-toggle="modal" data-bs-target="#deleteModal">
+          🗑️ Delete Order
+        </button>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <form method="post" action="{% url 'edit_order' order.id %}">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Customer</label>
+            <select name="customer" class="form-select" required>
+              {% for customer in customers %}
+              <option value="{{ customer.id }}"
+                {% if customer.id == order.customer.id %}selected{% endif %}>
+                {{ customer.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Service Type</label>
+            <select name="service_type" class="form-select" required>
+              {% for value, label in service_choices %}
+              <option value="{{ value }}" {% if order.service_type == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Weight (kg)</label>
+            <input type="number" step="0.1" name="weight"
+                   class="form-control" value="{{ order.weight }}" required>
+            <div class="form-text">Entering actual weight calculates the final bill and moves the order to Weighed.</div>
+          </div>
+
+          <div class="row g-2">
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">Price per kg</label>
+              <input type="number" step="0.01" min="0" name="price_per_kg" class="form-control" value="{{ order.price_per_kg }}">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">Extra Fee</label>
+              <input type="number" step="0.01" min="0" name="extra_fee" class="form-control" value="{{ order.extra_fee }}">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">Pickup Fee</label>
+              <input type="number" step="0.01" min="0" name="pickup_fee" class="form-control" value="{{ order.pickup_fee }}">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">Delivery Fee</label>
+              <input type="number" step="0.01" min="0" name="delivery_fee" class="form-control" value="{{ order.delivery_fee }}">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">Discount</label>
+              <input type="number" step="0.01" min="0" name="discount" class="form-control" value="{{ order.discount }}">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Priority</label>
+            <div class="form-check">
+              <input type="checkbox" name="priority" class="form-check-input"
+                     id="priority" {% if order.is_priority %}checked{% endif %}>
+              <label class="form-check-label" for="priority">
+                Rush Order (+surcharge)
+              </label>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Assign to Staff</label>
+            <select name="assigned_to" class="form-select">
+              <option value="">Unassigned</option>
+              {% for staff in staff_users %}
+              <option value="{{ staff.id }}" {% if order.assigned_to_id == staff.id %}selected{% endif %}>{{ staff.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Due Date & Time</label>
+            <input type="datetime-local" name="due_date" class="form-control"
+                   value="{{ order.due_date|date:'Y-m-d\\TH:i' }}">
+          </div>
+
+          {% if order.order_type == 'PICKUP_DELIVERY' %}
+          <div class="alert alert-info py-2">
+            <strong>Pickup & Delivery Order</strong>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Preferred Pickup</label>
+            <input type="datetime-local" name="preferred_pickup_at" class="form-control"
+                   value="{{ order.preferred_pickup_at|date:'Y-m-d\\TH:i' }}">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Pickup Address</label>
+            <textarea name="pickup_address" class="form-control" rows="2">{{ order.pickup_address }}</textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Delivery Address</label>
+            <textarea name="delivery_address" class="form-control" rows="2">{{ order.delivery_address }}</textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Delivery Notes</label>
+            <textarea name="delivery_notes" class="form-control" rows="2">{{ order.delivery_notes }}</textarea>
+          </div>
+          {% endif %}
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Special Instructions</label>
+            <textarea name="special_instructions" class="form-control" rows="2">{{ order.special_instructions }}</textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Payment Method</label>
+            <select name="payment_method" class="form-select">
+              {% for value, label in payment_methods %}
+              <option value="{{ value }}" {% if order.payment_method == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Final Billing</label>
+            <input type="text" class="form-control"
+                   value="Total {{ order.total_amount|peso }} | Paid {{ order.amount_paid|peso }} | Balance {{ order.balance|peso }}" disabled>
+            <div class="form-text">Total is recalculated from weight and fees when saved. Payment status changes through payment records.</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Payment Records</label>
+            <div class="list-group">
+              {% for payment in order.payments.all %}
+              <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                  <div>
+                    <strong>{{ payment.amount|peso }}</strong>
+                    <span class="text-muted small">{{ payment.get_payment_method_display }}{% if payment.reference_number %} · Ref {{ payment.reference_number }}{% endif %}</span>
+                    <span class="badge bg-secondary ms-1">{{ payment.get_status_display }}</span>
+                  </div>
+                  {% if payment.payment_method == 'GCASH' and payment.status == 'PENDING' %}
+                  <div class="d-flex gap-1">
+                    <button class="btn btn-sm btn-success" form="verifyPayment{{ payment.id }}">Verify</button>
+                    <button class="btn btn-sm btn-outline-danger" form="rejectPayment{{ payment.id }}">Reject</button>
+                  </div>
+                  {% endif %}
+                </div>
+                {% if payment.proof_image %}
+                <div class="mt-2">
+                  <a href="{{ payment.proof_image.url }}" target="_blank" class="d-inline-block">
+                    <img src="{{ payment.proof_image.url }}" alt="GCash proof" class="img-fluid rounded border" style="max-width:220px">
+                  </a>
+                  <div class="form-text">Click the screenshot to open it larger.</div>
+                </div>
+                {% endif %}
+              </div>
+              {% empty %}
+              <div class="list-group-item text-muted">No payment records yet.</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          {% if order.payment_method == 'CASH_AFTER_DELIVERY' and order.balance > 0 %}
+          <div class="alert alert-light border">
+            <label class="form-label fw-bold">Confirm COD Cash Received</label>
+            <div class="input-group">
+              <span class="input-group-text">₱</span>
+              <input type="number" step="0.01" min="0" name="amount" class="form-control" value="{{ order.balance }}" form="confirmCodPayment">
+              <button class="btn btn-success" form="confirmCodPayment">Record Cash</button>
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-fill">
+              💾 Save Changes
+            </button>
+            <a href="{% if is_admin %}{% url 'admin_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}"
+               class="btn btn-outline-secondary flex-fill">
+              Cancel
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% for payment in order.payments.all %}
+  {% if payment.payment_method == 'GCASH' and payment.status == 'PENDING' %}
+  <form id="verifyPayment{{ payment.id }}" method="post" action="{% url 'verify_payment' payment.id %}">
+    {% csrf_token %}
+  </form>
+  <form id="rejectPayment{{ payment.id }}" method="post" action="{% url 'reject_payment' payment.id %}">
+    {% csrf_token %}
+  </form>
+  {% endif %}
+{% endfor %}
+
+{% if order.payment_method == 'CASH_AFTER_DELIVERY' and order.balance > 0 %}
+<form id="confirmCodPayment" method="post" action="{% url 'confirm_cod_payment' order.id %}">
+  {% csrf_token %}
+</form>
+{% endif %}
+
+<!-- Delete Modal (Admin only) -->
+{% if is_admin %}
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header border-danger">
+        <h5 class="modal-title text-danger">⚠️ Delete Order #{{ order.id }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p>Are you sure you want to delete <strong>Order #{{ order.id }}</strong> for <strong>{{ order.customer.name }}</strong>?</p>
+        <p class="text-muted small">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="{% url 'delete_order' order.id %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Yes, Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

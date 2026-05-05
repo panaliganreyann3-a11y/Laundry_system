@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- Stats Row -->
+<div class="row g-4 mb-3">
+  <div class="col-md-3">
+    <div class="card text-white bg-primary shadow">
+      <div class="card-body">
+        <h6>Total Orders</h6>
+        <h2>{{ total_orders }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-white bg-warning shadow">
+      <div class="card-body">
+        <h6>Pending</h6>
+        <h2>{{ pending_orders }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-white bg-success shadow">
+      <div class="card-body">
+        <h6>Total Revenue</h6>
+        <h2>₱{{ total_revenue }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-white bg-info shadow">
+      <div class="card-body">
+        <h6>Total Customers</h6>
+        <h2>{{ total_customers }}</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Second Stats Row -->
+<div class="row g-4 mb-3">
+  <div class="col-md-3">
+    <div class="card text-white bg-danger shadow">
+      <div class="card-body">
+        <h6>Unpaid Orders</h6>
+        <h2>{{ unpaid_orders }}</h2>
+        <small>₱{{ unpaid_revenue }} outstanding</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Search & Filter Bar -->
+<form method="get" class="card shadow mb-3">
+  <div class="card-body">
+    <div class="row g-2 align-items-end">
+
+      <!-- Search -->
+      <div class="col-md-4">
+        <label class="form-label small text-muted mb-1">🔍 Search Customer</label>
+        <input
+          type="text" name="search"
+          class="form-control"
+          placeholder="Customer name..."
+          value="{{ search }}"
+        >
+      </div>
+
+      <!-- Status -->
+      <div class="col-md-2">
+        <label class="form-label small text-muted mb-1">🏷️ Status</label>
+        <select name="status" class="form-select">
+          <option value="">All</option>
+          <option value="RECEIVED_AT_SHOP" {% if status_filter == 'RECEIVED_AT_SHOP' %}selected{% endif %}>Received at Shop</option>
+          <option value="WEIGHED"  {% if status_filter == 'WEIGHED'  %}selected{% endif %}>Weighed</option>
+          <option value="PROCESSING"   {% if status_filter == 'PROCESSING'   %}selected{% endif %}>Processing</option>
+          <option value="READY_FOR_PICKUP"    {% if status_filter == 'READY_FOR_PICKUP'    %}selected{% endif %}>Ready for Pickup</option>
+          <option value="READY_FOR_DELIVERY"    {% if status_filter == 'READY_FOR_DELIVERY'    %}selected{% endif %}>Ready for Delivery</option>
+          <option value="COMPLETED"  {% if status_filter == 'COMPLETED'  %}selected{% endif %}>Completed</option>
+        </select>
+      </div>
+
+      <!-- Priority -->
+      <div class="col-md-2">
+        <label class="form-label small text-muted mb-1">⚡ Priority</label>
+        <select name="priority" class="form-select">
+          <option value="">All</option>
+          <option value="rush"     {% if priority_filter == 'rush'     %}selected{% endif %}>Rush</option>
+          <option value="standard" {% if priority_filter == 'standard' %}selected{% endif %}>Standard</option>
+        </select>
+      </div>
+
+      <!-- Date -->
+      <div class="col-md-2">
+        <label class="form-label small text-muted mb-1">📅 Date</label>
+        <select name="date" class="form-select">
+          <option value="">All Time</option>
+          <option value="today" {% if date_filter == 'today' %}selected{% endif %}>Today</option>
+          <option value="week"  {% if date_filter == 'week'  %}selected{% endif %}>Last 7 Days</option>
+          <option value="month" {% if date_filter == 'month' %}selected{% endif %}>Last 30 Days</option>
+        </select>
+      </div>
+
+      <!-- Buttons -->
+      <div class="col-md-2 d-flex gap-2">
+        <button type="submit" class="btn btn-primary flex-fill">Filter</button>
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary flex-fill">Clear</a>
+      </div>
+
+    </div>
+  </div>
+</form>
+
+<!-- Orders Table -->
+<div class="card shadow">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <div>
+      <strong>
+        Orders
+        {% if search %}— "{{ search }}"{% endif %}
+        {% if status_filter %}— {{ status_filter|title }}{% endif %}
+        {% if priority_filter %}— {{ priority_filter|title }}{% endif %}
+        {% if date_filter %}— {{ date_filter|title }}{% endif %}
+      </strong>
+      <span class="badge bg-secondary ms-2">{{ total_orders }} result{{ total_orders|pluralize }}</span>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'reports' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-bar-chart me-1"></i>Reports
+      </a>
+      <a href="{% url 'add_order' %}" class="btn btn-sm btn-primary">+ New Order</a>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Customer</th>
+          <th>Weight</th>
+          <th>Price</th>
+          <th>Status</th>
+          <th>Priority</th>
+          <th>Payment</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for order in orders %}
+        <tr>
+          <td>{{ order.id }}</td>
+          <td>
+            <a href="{% url 'customer_detail' order.customer.id %}">
+              {{ order.customer.name }}
+            </a>
+          </td>
+          <td>{{ order.weight }} kg</td>
+          <td>₱{{ order.total_amount }}</td>
+          <td>
+            <span class="badge bg-{{ order.status_badge_color }}">
+              {{ order.get_status_display }}
+            </span>
+          </td>
+          <td>
+            {% if order.is_priority %}
+              <span class="badge bg-danger">RUSH</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if order.payment_status == 'PAID' %}
+              <span class="badge bg-success">PAID</span>
+            {% else %}
+              <span class="badge bg-danger">UNPAID</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="d-flex gap-1 flex-wrap">
+              {% if order.status != 'COMPLETED' %}
+              <a href="{% url 'update_status' order.id %}"
+                 class="btn btn-sm btn-outline-primary confirm-btn"
+                 data-msg="Move Order #{{ order.id }} to {{ order.get_next_status }}?">
+                → {{ order.get_next_status }}
+              </a>
+              {% else %}
+              <span class="text-muted">Done</span>
+              {% endif %}
+
+              {% if order.payment_status == 'UNPAID' %}
+              <a href="{% url 'mark_paid' order.id %}"
+                 class="btn btn-sm btn-outline-success confirm-btn"
+                 data-msg="Mark Order #{{ order.id }} as PAID?">
+                💵
+              </a>
+              {% endif %}
+
+              <a href="{% url 'order_receipt' order.id %}"
+                 class="btn btn-sm btn-outline-secondary">
+                🖨️
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center text-muted py-3">No orders yet</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="card shadow mt-4">
+  <div class="card-header"><strong>🕐 Recent Activity</strong></div>
+  <div class="list-group list-group-flush">
+    {% for order in recent_orders %}
+    <div class="list-group-item d-flex justify-content-between align-items-center">
+      <div>
+        <strong>Order #{{ order.id }}</strong> — {{ order.customer.name }}
+        <br>
+        <small class="text-muted">{{ order.get_service_type_display }} · {{ order.weight }}kg · ₱{{ order.total_amount }}</small>
+      </div>
+      <div class="text-end">
+        <span class="badge bg-{{ order.status_badge_color }}">{{ order.get_status_display }}</span>
+        <br>
+        <small class="text-muted">{{ order.created_at|timesince }} ago</small>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.confirm-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      if (!confirm(this.dataset.msg)) {
+        e.preventDefault();
+      }
+    });
+  });
+</script>
+
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Add Staff{% endblock %}
+{% block page_title %}Add Staff Account{% endblock %}
+
+{% block content %}
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="card shadow">
+      <div class="card-header"><strong>👤 New Staff Account</strong></div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Username</label>
+            <input type="text" name="username" class="form-control" required autofocus>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Password</label>
+            <input type="password" name="password" class="form-control" required minlength="6">
+            <div class="form-text">Minimum 6 characters.</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Role</label>
+            <select name="role" class="form-select" required>
+              <option value="staff">Staff</option>
+              <option value="admin">Admin</option>
+            </select>
+            <div class="form-text">
+              Admins can access pricing, reports, and staff management.
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100">
+            Create Account
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="text-center mt-3">
+      <a href="{% url 'staff_list' %}" class="text-muted small">← Back to Staff List</a>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

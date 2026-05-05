@@ -1,0 +1,132 @@
+{% extends 'customer_base.html' %}
+{% load laundry_filters %}
+{% block title %}Order #{{ order.id }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="fw-bold mb-0">Order #{{ order.id }}</h3>
+  <span class="badge bg-{{ order.status_badge_color }} fs-6">{{ order.get_status_display }}</span>
+</div>
+
+{% if order.status == 'CANCELLED' %}
+<div class="alert alert-danger">
+  <strong>Pickup request declined.</strong>
+  {% if order.decline_reason %}
+  <div class="mt-1">{{ order.decline_reason }}</div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card mb-3">
+      <div class="card-header bg-white"><strong>Order Details</strong></div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Service</dt><dd class="col-sm-8">{{ order.get_service_type_display }}</dd>
+          <dt class="col-sm-4">Type</dt><dd class="col-sm-8">{{ order.get_order_type_display }}</dd>
+          <dt class="col-sm-4">Weight</dt><dd class="col-sm-8">{{ order.weight }} kg</dd>
+          <dt class="col-sm-4">Laundry Fee</dt><dd class="col-sm-8">{{ order.laundry_fee|peso }}</dd>
+          <dt class="col-sm-4">Total Amount</dt><dd class="col-sm-8">{{ order.total_amount|peso }}</dd>
+          <dt class="col-sm-4">Amount Paid</dt><dd class="col-sm-8">{{ order.amount_paid|peso }}</dd>
+          <dt class="col-sm-4">Balance</dt><dd class="col-sm-8">{{ order.balance|peso }}</dd>
+          {% if order.overpayment > 0 %}
+          <dt class="col-sm-4">Change / Overpayment</dt><dd class="col-sm-8">{{ order.overpayment|peso }}</dd>
+          {% endif %}
+          <dt class="col-sm-4">Payment</dt><dd class="col-sm-8">{{ order.get_payment_status_display }} via {{ order.get_payment_method_display }}</dd>
+          <dt class="col-sm-4">Created</dt><dd class="col-sm-8">{{ order.created_at|date:"M d, Y h:i A" }}</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header bg-white"><strong>Pickup & Delivery</strong></div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Preferred Pickup</dt><dd class="col-sm-8">{{ order.preferred_pickup_at|date:"M d, Y h:i A"|default:"-" }}</dd>
+          <dt class="col-sm-4">Pickup Address</dt><dd class="col-sm-8">{{ order.pickup_address|default:"-" }}</dd>
+          <dt class="col-sm-4">Delivery Address</dt><dd class="col-sm-8">{{ order.delivery_address|default:"-" }}</dd>
+          <dt class="col-sm-4">Picked Up</dt><dd class="col-sm-8">{{ order.picked_up_at|date:"M d, Y h:i A"|default:"-" }}</dd>
+          <dt class="col-sm-4">Delivered</dt><dd class="col-sm-8">{{ order.delivered_at|date:"M d, Y h:i A"|default:"-" }}</dd>
+          <dt class="col-sm-4">Declined</dt><dd class="col-sm-8">{{ order.declined_at|date:"M d, Y h:i A"|default:"-" }}</dd>
+          <dt class="col-sm-4">Instructions</dt><dd class="col-sm-8">{{ order.special_instructions|default:"-" }}</dd>
+          {% if order.decline_reason %}
+          <dt class="col-sm-4">Decline Reason</dt><dd class="col-sm-8">{{ order.decline_reason }}</dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    {% if order.payment_method == 'GCASH' and order.total_amount > 0 and order.payment_status != 'PAID' %}
+    <div class="card mb-3">
+      <div class="card-header bg-white"><strong>Pay with GCash</strong></div>
+      <div class="card-body">
+        {% if config.gcash_qr or config.gcash_number %}
+        <div class="text-center mb-3">
+          {% if config.gcash_qr %}
+          <img src="{{ config.gcash_qr.url }}" alt="GCash QR" class="img-fluid rounded border mb-2" style="max-width:240px">
+          {% endif %}
+          {% if config.gcash_number %}
+          <div class="fw-semibold">GCash Number: {{ config.gcash_number }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+        <form method="post" action="{% url 'submit_gcash_payment' order.id %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">Amount Paid</label>
+            <input type="number" step="0.01" min="0" name="amount" class="form-control" value="{{ order.balance }}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Reference Number</label>
+            <input type="text" name="reference_number" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Proof Image</label>
+            <input type="file" name="proof_image" class="form-control" accept="image/*">
+          </div>
+          <button class="btn btn-primary w-100">Submit Proof</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card mb-3">
+      <div class="card-header bg-white"><strong>Payment Records</strong></div>
+      <div class="list-group list-group-flush">
+        {% for payment in order.payments.all %}
+        <div class="list-group-item">
+          <div class="d-flex justify-content-between">
+            <strong>{{ payment.amount|peso }}</strong>
+            <span class="badge bg-secondary">{{ payment.get_status_display }}</span>
+          </div>
+          <div class="small text-muted">{{ payment.get_payment_method_display }}{% if payment.reference_number %} · Ref {{ payment.reference_number }}{% endif %}</div>
+        </div>
+          {% if payment.proof_image %}
+          <div class="mt-2">
+            <a href="{{ payment.proof_image.url }}" target="_blank">
+              <img src="{{ payment.proof_image.url }}" alt="Payment proof" class="img-fluid rounded border" style="max-width:160px">
+            </a>
+          </div>
+          {% endif %}
+        {% empty %}
+        <div class="list-group-item text-muted">No payment records yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header bg-white"><strong>Status Flow</strong></div>
+      <div class="list-group list-group-flush">
+        <div class="list-group-item">Pending Pickup</div>
+        <div class="list-group-item">Pickup Confirmed</div>
+        <div class="list-group-item">Picked Up</div>
+        <div class="list-group-item">Received at Shop</div>
+        <div class="list-group-item">Weighed and Billed</div>
+        <div class="list-group-item">Processing</div>
+        <div class="list-group-item">Out for Delivery</div>
+        <div class="list-group-item">Delivered and Completed</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

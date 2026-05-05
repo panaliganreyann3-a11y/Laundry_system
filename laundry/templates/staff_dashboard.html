@@ -1,0 +1,312 @@
+{% extends 'base.html' %}
+{% block title %}Staff Dashboard{% endblock %}
+{% block page_title %}{{ task_title|default:"Staff Dashboard" }}{% endblock %}
+
+{% block content %}
+{% load laundry_filters %}
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="kpi kpi-primary d-flex justify-content-between align-items-start">
+      <div>
+        <div class="kpi-label">{{ task_title|default:"Active" }}</div>
+        <div class="kpi-val">{{ total_orders }}</div>
+      </div>
+      <i class="bi bi-receipt kpi-icon"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="kpi kpi-warning d-flex justify-content-between align-items-start">
+      <div>
+        <div class="kpi-label">Pending</div>
+        <div class="kpi-val">{{ pending_orders }}</div>
+      </div>
+      <i class="bi bi-hourglass kpi-icon"></i>
+    </div>
+  </div>
+  <div class="col-12 col-md-6">
+    <div class="card h-100 d-flex flex-row align-items-center px-4 gap-3">
+      <i class="bi bi-kanban fs-1 text-primary opacity-50"></i>
+      <div>
+        <div class="fw-semibold">Task Queues</div>
+        <small class="text-muted">Switch between pickup/delivery and walk-in work</small>
+      </div>
+      <div class="ms-auto d-flex gap-2">
+        <a href="{% url 'delivery_tasks' %}" class="btn btn-sm {% if task_type == 'PICKUP_DELIVERY' %}btn-primary{% else %}btn-outline-primary{% endif %}">Delivery <span class="badge bg-light text-dark">{{ delivery_count }}</span></a>
+        <a href="{% url 'walkin_tasks' %}" class="btn btn-sm {% if task_type == 'WALK_IN' %}btn-primary{% else %}btn-outline-primary{% endif %}">Walk-in <span class="badge bg-light text-dark">{{ walkin_count }}</span></a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Search & Filter -->
+<form method="get" class="card mb-3">
+  <div class="card-body py-2">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-5">
+        <input type="text" name="search" class="form-control form-control-sm"
+               placeholder="Search customer..." value="{{ search }}">
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">All Status</option>
+          {% for value, label in status_choices %}
+          {% if value != 'COMPLETED' and value != 'CANCELLED' %}
+          <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4 d-flex gap-2">
+        <button class="btn btn-primary btn-sm flex-fill">Filter</button>
+        <a href="{% url clear_url_name %}" class="btn btn-outline-secondary btn-sm flex-fill">Clear</a>
+        <a href="{% url 'add_order' %}" class="btn btn-success btn-sm">+ Order</a>
+      </div>
+    </div>
+  </div>
+</form>
+
+<!-- Workflow Board -->
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong>{{ task_title }} Workflow</strong>
+    <small class="text-muted">Same board style as the old task view, filtered for this task type</small>
+  </div>
+  <div class="card-body">
+    <div class="d-flex gap-3 pb-2" style="overflow-x:auto; align-items:flex-start;">
+      {% for col in workflow_columns %}
+      <div class="flex-shrink-0" style="width:260px">
+        <div class="card mb-2 shadow-sm" style="border-top:3px solid {{ col.color }}; border-radius:10px;">
+          <div class="card-header d-flex justify-content-between align-items-center py-2 px-3">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi {{ col.icon }}" style="color:{{ col.color }}"></i>
+              <span class="fw-semibold small" style="color:{{ col.color }}">{{ col.label }}</span>
+            </div>
+            <span class="badge bg-{{ col.badge }} rounded-pill">{{ col.count }}</span>
+          </div>
+        </div>
+
+        {% for order in col.orders %}
+        <div class="card mb-2 shadow-sm" style="border-radius:10px; border-left:3px solid {{ col.color }}">
+          <div class="card-body px-3 py-2">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="fw-bold text-muted small">#{{ order.id }}</span>
+              {% if order.is_priority %}<span class="badge bg-danger">Rush</span>{% endif %}
+            </div>
+            <div class="fw-semibold small mb-1">{{ order.customer.name }}</div>
+            <div class="d-flex gap-1 flex-wrap mb-2">
+              <span class="badge bg-light text-dark border">{{ order.get_service_type_display }}</span>
+              <span class="badge bg-secondary-subtle text-secondary">Q{{ order.queue_number }}</span>
+            </div>
+            <div class="d-flex justify-content-between text-muted small mb-2">
+              <span>{{ order.weight }} kg</span>
+              <span class="fw-semibold text-success">{{ order.total_amount|peso }}</span>
+            </div>
+            <div class="mb-2">
+              {% if order.payment_status == 'PAID' %}
+              <span class="badge bg-success-subtle text-success border">Paid</span>
+              {% else %}
+              <span class="badge bg-danger-subtle text-danger border">{{ order.get_payment_status_display }}</span>
+              {% endif %}
+            </div>
+            <div class="d-flex gap-1">
+              {% if order.status == 'PENDING_PICKUP' and order.order_type == 'PICKUP_DELIVERY' %}
+              <form method="post" action="{% url 'accept_pickup_request' order.id %}" class="flex-fill">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-success w-100 confirm-btn"
+                        data-msg="Accept pickup request #{{ order.id }} and assign it to yourself?">Accept</button>
+              </form>
+              {% elif order.get_next_status %}
+              <a href="{% url 'update_status' order.id %}" class="btn btn-sm btn-outline-primary flex-fill confirm-btn"
+                 data-msg="Move #{{ order.id }} to {{ order.get_next_status }}?">
+                {{ order.get_next_status }}
+              </a>
+              {% endif %}
+              <a href="{% url 'edit_order' order.id %}" class="btn btn-sm btn-outline-warning">
+                <i class="bi bi-pencil"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <div class="border rounded text-center text-muted small py-4 bg-light">No orders</div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Orders Table -->
+<form method="post" action="{% url 'bulk_update_status' %}" id="bulkForm">
+  {% csrf_token %}
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <strong>{{ task_title|default:"Active Orders" }}</strong>
+      <div id="bulkBar" class="d-none d-flex align-items-center gap-2">
+        <small id="selCount" class="text-muted"></small>
+        <select name="bulk_action" class="form-select form-select-sm" style="width:auto">
+          <option value="advance">→ Advance</option>
+          <option value="mark_paid">Mark Paid</option>
+        </select>
+        <button type="submit" class="btn btn-sm btn-warning">Apply</button>
+      </div>
+    </div>
+    <div class="card-body p-0 table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:36px"><input type="checkbox" id="selAll" class="form-check-input"></th>
+            <th>#</th>
+            <th>Queue</th>
+            <th>Customer</th>
+            <th>Type</th>
+            <th>Service</th>
+            <th>Weight</th>
+            <th>Price</th>
+            <th>Est. Pickup</th>
+            <th>Status</th>
+            <th>Pay</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orders %}
+          <tr>
+            <td><input type="checkbox" name="order_ids" value="{{ o.id }}" class="order-cb form-check-input"></td>
+            <td class="text-muted small">{{ o.id }}</td>
+            <td><span class="badge bg-light text-dark border">Q{{ o.queue_number }}</span></td>
+            <td class="fw-semibold small">
+              {{ o.customer.name }}
+              {% if o.is_priority %}<span class="badge bg-danger ms-1" style="font-size:.6rem">RUSH</span>{% endif %}
+            </td>
+            <td>
+              {% if o.order_type == 'PICKUP_DELIVERY' %}
+              <span class="badge bg-info-subtle text-info border border-info-subtle">Pickup</span>
+              {% else %}
+              <span class="badge bg-secondary-subtle text-secondary border">Walk-in</span>
+              {% endif %}
+            </td>
+            <td><small class="text-muted">{{ o.get_service_type_display }}</small></td>
+            <td>{{ o.weight }} kg</td>
+            <td class="fw-semibold">{{ o.total_amount|peso }}</td>
+            <td>
+              {% if o.estimated_pickup %}<small class="text-muted">{{ o.estimated_pickup|date:"M d, h:i A" }}</small>
+              {% else %}—{% endif %}
+            </td>
+            <td><span class="badge bg-{{ o.status_badge_color }}">{{ o.get_status_display }}</span></td>
+            <td>
+              {% if o.payment_status == 'PAID' %}
+              <span class="badge bg-success-subtle text-success border">Paid</span>
+              {% else %}
+              <span class="badge bg-danger-subtle text-danger border">Unpaid</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="d-flex gap-1">
+                {% if o.status == 'PENDING_PICKUP' and o.order_type == 'PICKUP_DELIVERY' %}
+                <button type="submit" form="acceptPickup{{ o.id }}" class="btn btn-sm btn-success confirm-btn"
+                        data-msg="Accept pickup request #{{ o.id }} and assign it to yourself?">
+                  <i class="bi bi-check-lg"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger"
+                        data-bs-toggle="modal" data-bs-target="#declinePickup{{ o.id }}">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+                {% elif o.get_next_status %}
+                <a href="{% url 'update_status' o.id %}" class="btn btn-sm btn-outline-primary confirm-btn"
+                   data-msg="Move #{{ o.id }} to {{ o.get_next_status }}?">
+                  <i class="bi bi-arrow-right-short"></i>
+                </a>
+                {% endif %}
+                <a href="{% url 'order_receipt' o.id %}" class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-printer"></i>
+                </a>
+                <a href="{% url 'edit_order' o.id %}" class="btn btn-sm btn-outline-warning">
+                  <i class="bi bi-pencil"></i>
+                </a>
+              </div>
+              {% if o.status == 'PENDING_PICKUP' and o.order_type == 'PICKUP_DELIVERY' %}
+                <div class="modal fade" id="declinePickup{{ o.id }}" tabindex="-1">
+                  <div class="modal-dialog">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title">Decline Pickup #{{ o.id }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                      </div>
+                      <div class="modal-body">
+                        <label class="form-label fw-semibold">Reason</label>
+                        <textarea name="decline_reason" form="declinePickupForm{{ o.id }}" class="form-control" rows="3"
+                                  placeholder="Example: pickup area is outside service coverage" required></textarea>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" form="declinePickupForm{{ o.id }}" class="btn btn-danger">Decline Request</button>
+                      </div>
+                  </div>
+                </div>
+              </div>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="12" class="text-center text-muted py-5">No active orders</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+      <small class="text-muted">{{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</small>
+      <nav><ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_obj.previous_page_number }})">&laquo;</a></li>
+        {% endif %}
+        {% for n in page_obj.paginator.page_range %}
+          {% if page_obj.number == n %}
+          <li class="page-item active"><span class="page-link">{{ n }}</span></li>
+          {% elif n > page_obj.number|add:"-3" and n < page_obj.number|add:"3" %}
+          <li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage({{ n }})">{{ n }}</a></li>
+          {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_obj.next_page_number }})">&raquo;</a></li>
+        {% endif %}
+      </ul></nav>
+    </div>
+    {% endif %}
+  </div>
+</form>
+
+{% for o in orders %}
+  {% if o.status == 'PENDING_PICKUP' and o.order_type == 'PICKUP_DELIVERY' %}
+  <form id="acceptPickup{{ o.id }}" method="post" action="{% url 'accept_pickup_request' o.id %}">
+    {% csrf_token %}
+  </form>
+  <form id="declinePickupForm{{ o.id }}" method="post" action="{% url 'decline_pickup_request' o.id %}">
+    {% csrf_token %}
+  </form>
+  {% endif %}
+{% endfor %}
+
+<script>
+  document.querySelectorAll('.confirm-btn').forEach(b => {
+    b.addEventListener('click', e => { if (!confirm(b.dataset.msg)) e.preventDefault(); });
+  });
+  document.getElementById('selAll').addEventListener('change', function() {
+    document.querySelectorAll('.order-cb').forEach(c => c.checked = this.checked);
+    updateBulk();
+  });
+  document.querySelectorAll('.order-cb').forEach(c => c.addEventListener('change', updateBulk));
+  function updateBulk() {
+    const n = document.querySelectorAll('.order-cb:checked').length;
+    document.getElementById('bulkBar').classList.toggle('d-none', n === 0);
+    document.getElementById('selCount').textContent = n + ' selected';
+  }
+  function goToPage(p) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('page', p); window.location.search = params.toString();
+  }
+</script>
+{% endblock %}

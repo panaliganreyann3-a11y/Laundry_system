@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Receipt #{{ order.id }}{% endblock %}
+{% block page_title %}Order Receipt #{{ order.id }}{% endblock %}
+
+{% block content %}
+{% load laundry_filters %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+
+    <div class="card shadow" id="receipt-card">
+      <div class="card-body p-4">
+
+        <!-- Header -->
+        <div class="text-center mb-3">
+          <h4>🧺 Smart Laundry</h4>
+          <small class="text-muted">Official Order Slip</small>
+          <hr>
+        </div>
+
+        <!-- Order Info -->
+        <table class="table table-borderless table-sm">
+          <tr>
+            <td class="text-muted">Order #</td>
+            <td><strong>{{ order.id }}</strong></td>
+          </tr>
+          <tr>
+            <td class="text-muted">Customer</td>
+            <td><strong>{{ order.customer.name }}</strong></td>
+          </tr>
+          <tr>
+            <td class="text-muted">Contact</td>
+            <td>{{ order.customer.contact }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted">Service</td>
+            <td>{{ order.get_service_type_display }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted">Weight</td>
+            <td>{{ order.weight }} kg</td>
+          </tr>
+          <tr>
+            <td class="text-muted">Priority</td>
+            <td>
+              {% if order.is_priority %}
+                <span class="badge bg-danger">RUSH</span>
+              {% else %}
+                Standard
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td class="text-muted">Status</td>
+            <td>
+              <span class="badge bg-{{ order.status_badge_color }}">
+                {{ order.get_status_display }}
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td class="text-muted">Date</td>
+            <td>{{ order.created_at|date:"M d, Y h:i A" }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted">Total</td>
+            <td><strong class="text-success fs-5">{{ order.total_amount|peso }}</strong></td>
+          </tr>
+        </table>
+
+        <!-- QR Code -->
+        {% if order.qr_code %}
+        <div class="text-center mt-3">
+          <img src="{{ order.qr_code.url }}" width="160" height="160" alt="QR Code">
+          <br>
+          <small class="text-muted">Scan to verify order</small>
+        </div>
+        {% endif %}
+
+        <hr>
+       <p class="text-center text-muted small mb-0">
+              Thank you for choosing Smart Laundry!
+            </p>
+            <p class="text-center small mt-1">
+              Track your order at:
+              <strong>192.168.1.50:8000/track/</strong>
+              — Order ID: <strong>#{{ order.id }}</strong>
+            </p>
+
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="d-flex gap-2 mt-3">
+      <button onclick="window.print()" class="btn btn-primary flex-fill">
+        🖨️ Print Slip
+      </button>
+      <a href="{% if is_admin %}{% url 'admin_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn btn-outline-secondary flex-fill">
+        ← Back
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<!-- Print Styles -->
+<style>
+  @media print {
+    #sidebar, .top-bar, .d-flex.gap-2 { display: none !important; }
+    #main { padding: 0 !important; }
+    .card { box-shadow: none !important; border: 1px solid #ddd; }
+  }
+</style>
+
+{% endblock %}

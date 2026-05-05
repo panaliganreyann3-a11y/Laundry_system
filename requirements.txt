@@ -1,0 +1,9 @@
+Django==4.2
+mysqlclient==2.2.8
+PyMySQL==1.1.1
+Pillow>=10.4.0
+python-dotenv==1.2.2
+qrcode==8.2
+asgiref==3.11.1
+sqlparse==0.5.5
+tzdata==2026.2

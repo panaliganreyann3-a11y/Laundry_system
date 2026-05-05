@@ -1,0 +1,210 @@
+from django.test import TestCase, Client
+from django.contrib.auth.models import User, Group
+from django.urls import reverse
+from django.utils import timezone
+
+from .models import Customer, Order, PricingConfig
+
+
+def make_admin(username='admin', password='adminpass123'):
+    user = User.objects.create_user(username=username, password=password)
+    user.is_superuser = True
+    user.is_staff = True
+    user.save()
+    return user
+
+
+def make_staff(username='staff', password='staffpass123'):
+    user = User.objects.create_user(username=username, password=password)
+    group, _ = Group.objects.get_or_create(name='Staff')
+    user.groups.add(group)
+    return user
+
+
+def make_customer(name='Test Customer', contact='09123456789'):
+    return Customer.objects.create(name=name, contact=contact)
+
+
+def make_config(price_per_kg=30.0, rush_surcharge=50.0):
+    return PricingConfig.objects.create(price_per_kg=price_per_kg, rush_surcharge=rush_surcharge)
+
+
+class PriceCalculationTest(TestCase):
+    def test_standard_order_price(self):
+        config = make_config(price_per_kg=30.0, rush_surcharge=50.0)
+        price = round(5.0 * config.price_per_kg, 2)
+        self.assertEqual(price, 150.0)
+
+    def test_rush_order_price(self):
+        config = make_config(price_per_kg=30.0, rush_surcharge=50.0)
+        price = round(5.0 * config.price_per_kg + config.rush_surcharge, 2)
+        self.assertEqual(price, 200.0)
+
+    def test_price_via_add_order_view(self):
+        admin = make_admin()
+        customer = make_customer()
+        make_config(price_per_kg=30.0, rush_surcharge=50.0)
+        self.client.force_login(admin)
+        self.client.post(reverse('add_order'), {
+            'customer': customer.id,
+            'weight': '5',
+            'service_type': 'WASH_DRY_FOLD',
+            'payment_status': 'UNPAID',
+        })
+        order = Order.objects.first()
+        self.assertIsNotNone(order)
+        self.assertEqual(order.price, 150.0)
+
+    def test_rush_price_via_add_order_view(self):
+        admin = make_admin()
+        customer = make_customer()
+        make_config(price_per_kg=30.0, rush_surcharge=50.0)
+        self.client.force_login(admin)
+        self.client.post(reverse('add_order'), {
+            'customer': customer.id,
+            'weight': '5',
+            'service_type': 'WASH_DRY_FOLD',
+            'priority': 'on',
+            'payment_status': 'UNPAID',
+        })
+        order = Order.objects.first()
+        self.assertEqual(order.price, 200.0)
+        self.assertTrue(order.is_priority)
+
+
+class StatusWorkflowTest(TestCase):
+    def setUp(self):
+        self.customer = make_customer()
+        self.order = Order.objects.create(
+            customer=self.customer,
+            weight=3.0,
+            price=90.0,
+            service_type='WASH_DRY',
+        )
+
+    def test_initial_status_is_received(self):
+        self.assertEqual(self.order.status, 'RECEIVED_AT_SHOP')
+
+    def test_next_status_flow(self):
+        flow = ['WEIGHED', 'PROCESSING', 'READY_FOR_PICKUP']
+        for expected in flow:
+            self.assertEqual(self.order.get_next_status(), expected)
+            self.order.status = expected
+            self.order.save()
+        self.order.payment_status = 'PAID'
+        self.assertEqual(self.order.get_next_status(), 'COMPLETED')
+
+    def test_no_next_status_after_completed(self):
+        self.order.status = 'COMPLETED'
+        self.order.save()
+        self.assertIsNone(self.order.get_next_status())
+
+    def test_is_complete(self):
+        self.assertFalse(self.order.is_complete())
+        self.order.status = 'COMPLETED'
+        self.assertTrue(self.order.is_complete())
+
+    def test_update_status_view_advances_order(self):
+        admin = make_admin()
+        self.client.force_login(admin)
+        self.client.get(reverse('update_status', args=[self.order.id]))
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, 'WEIGHED')
+
+    def test_update_status_sets_completed_at_alias(self):
+        admin = make_admin()
+        self.client.force_login(admin)
+        self.order.status = 'READY_FOR_PICKUP'
+        self.order.payment_status = 'PAID'
+        self.order.save()
+        self.client.get(reverse('update_status', args=[self.order.id]))
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, 'COMPLETED')
+        self.assertIsNotNone(self.order.claimed_at)
+
+
+class RoleBasedAccessTest(TestCase):
+    def setUp(self):
+        self.admin = make_admin()
+        self.staff = make_staff()
+        make_config()
+
+    def test_admin_can_access_reports(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('reports'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_staff_cannot_access_reports(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('reports'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_can_access_pricing(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('pricing_settings'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_staff_cannot_access_pricing(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('pricing_settings'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_unauthenticated_redirected_to_login(self):
+        response = self.client.get(reverse('admin_dashboard'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/staff-login/', response['Location'])
+
+    def test_admin_dashboard_redirects_staff(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('admin_dashboard'))
+        self.assertRedirects(response, reverse('staff_dashboard'))
+
+    def test_staff_dashboard_redirects_admin(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('staff_dashboard'))
+        self.assertRedirects(response, reverse('admin_dashboard'))
+
+
+class WeightValidationTest(TestCase):
+    def setUp(self):
+        self.admin = make_admin()
+        self.customer = make_customer()
+        make_config()
+        self.client.force_login(self.admin)
+
+    def test_zero_weight_rejected(self):
+        self.client.post(reverse('add_order'), {
+            'customer': self.customer.id,
+            'weight': '0',
+            'service_type': 'WASH',
+            'payment_status': 'UNPAID',
+        })
+        self.assertEqual(Order.objects.count(), 0)
+
+    def test_negative_weight_rejected(self):
+        self.client.post(reverse('add_order'), {
+            'customer': self.customer.id,
+            'weight': '-3',
+            'service_type': 'WASH',
+            'payment_status': 'UNPAID',
+        })
+        self.assertEqual(Order.objects.count(), 0)
+
+
+class QueueNumberTest(TestCase):
+    def test_queue_number_increments_daily(self):
+        admin = make_admin()
+        customer = make_customer()
+        make_config()
+        self.client.force_login(admin)
+
+        for _ in range(3):
+            self.client.post(reverse('add_order'), {
+                'customer': customer.id,
+                'weight': '2',
+                'service_type': 'WASH',
+                'payment_status': 'UNPAID',
+            })
+
+        queue_numbers = list(Order.objects.order_by('queue_number').values_list('queue_number', flat=True))
+        self.assertEqual(queue_numbers, [1, 2, 3])

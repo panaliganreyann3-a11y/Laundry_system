@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Add Customer{% endblock %}
+{% block page_title %}Add Customer{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header"><strong><i class="bi bi-person-plus me-2"></i>New Customer</strong></div>
+      <div class="card-body">
+        <form method="POST">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Maria Santos" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Phone Number <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+              <input type="text" name="contact" class="form-control" placeholder="09XXXXXXXXX" required>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Email <span class="text-muted fw-normal">(optional)</span></label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+              <input type="email" name="email" class="form-control" placeholder="customer@email.com">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Address <span class="text-muted fw-normal">(optional)</span></label>
+            <textarea name="address" class="form-control" rows="2"
+                      placeholder="Street, Barangay, City..."></textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Notes / Preferences <span class="text-muted fw-normal">(optional)</span></label>
+            <textarea name="notes" class="form-control" rows="2"
+                      placeholder="e.g. Allergic to fabric softener, separate whites..."></textarea>
+          </div>
+
+          <div class="mb-4">
+            <div class="form-check form-switch">
+              <input type="checkbox" name="is_walk_in" class="form-check-input" id="walkIn" role="switch">
+              <label class="form-check-label" for="walkIn">
+                Walk-in customer <small class="text-muted">(no contact account needed)</small>
+              </label>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success flex-fill">
+              <i class="bi bi-check-lg me-1"></i>Save Customer
+            </button>
+            <a href="{% url 'customer_list' %}" class="btn btn-outline-secondary flex-fill">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

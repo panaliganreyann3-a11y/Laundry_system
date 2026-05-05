@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% block title %}Customers{% endblock %}
+{% block page_title %}Customer Management{% endblock %}
+
+{% block content %}
+{% load laundry_filters %}
+
+<!-- Stats Row -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-6">
+    <div class="kpi kpi-primary d-flex justify-content-between align-items-start">
+      <div>
+        <div class="kpi-label">Total Customers</div>
+        <div class="kpi-val">{{ total_customers }}</div>
+      </div>
+      <i class="bi bi-people kpi-icon"></i>
+    </div>
+  </div>
+</div>
+
+<!-- Search + Actions -->
+<div class="card mb-4">
+  <div class="card-body py-2">
+    <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
+      <div class="flex-fill" style="min-width:200px">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" name="search" class="form-control"
+                 placeholder="Search by name, contact, or email..." value="{{ search }}">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm">Search</button>
+      <a href="{% url 'customer_list' %}" class="btn btn-outline-secondary btn-sm">Clear</a>
+      <a href="{% url 'add_customer' %}" class="btn btn-success btn-sm ms-auto">
+        <i class="bi bi-person-plus me-1"></i>Add Customer
+      </a>
+    </form>
+  </div>
+</div>
+
+<!-- Customer Table -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong>Customers</strong>
+    <span class="badge bg-secondary">{{ page_obj.paginator.count }} total</span>
+  </div>
+  <div class="card-body p-0 table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Customer</th>
+          <th>Contact</th>
+          <th>Address</th>
+          <th class="text-center">Orders</th>
+          <th class="text-center">Loyalty Pts</th>
+          <th>Last Visit</th>
+          <th>Type</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for customer in customers %}
+        <tr>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                   style="width:34px;height:34px;background:#e8f0fe;color:#0d6efd;font-weight:700;font-size:.85rem">
+                {{ customer.name|first|upper }}
+              </div>
+              <div>
+                <div class="fw-semibold" style="font-size:.88rem">{{ customer.name }}</div>
+                {% if customer.email %}
+                <small class="text-muted">{{ customer.email }}</small>
+                {% endif %}
+              </div>
+            </div>
+          </td>
+          <td class="text-muted small">{{ customer.contact }}</td>
+          <td class="text-muted small">{{ customer.address|default:"—"|truncatechars:30 }}</td>
+          <td class="text-center">
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+              {{ customer.order_count }}
+            </span>
+          </td>
+          <td class="text-center">
+            {% if customer.loyalty_points > 0 %}
+            <span class="badge bg-warning text-dark">
+              <i class="bi bi-star-fill me-1"></i>{{ customer.loyalty_points }}
+            </span>
+            {% else %}
+            <span class="text-muted small">0</span>
+            {% endif %}
+          </td>
+          <td class="text-muted small">
+            {% if customer.last_order %}
+            {{ customer.last_order.created_at|date:"M d, Y" }}
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if customer.is_walk_in %}
+            <span class="badge bg-secondary-subtle text-secondary border">Walk-in</span>
+            {% elif customer.user_id %}
+            <span class="badge bg-info-subtle text-info border border-info-subtle">Online</span>
+            {% else %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle">Regular</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="d-flex gap-1">
+              <a href="{% url 'customer_detail' customer.id %}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-person-lines-fill"></i>
+              </a>
+              <a href="{% url 'add_order' %}?customer={{ customer.id }}" class="btn btn-sm btn-outline-success" title="New Order">
+                <i class="bi bi-plus-lg"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center text-muted py-5">
+            <i class="bi bi-people" style="font-size:2rem"></i><br>
+            No customers found
+            {% if not search %}
+            — <a href="{% url 'add_customer' %}">Add the first one</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page_obj.has_other_pages %}
+  <div class="card-footer d-flex justify-content-between align-items-center">
+    <small class="text-muted">{{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</small>
+    <nav><ul class="pagination pagination-sm mb-0">
+      {% if page_obj.has_previous %}
+      <li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_obj.previous_page_number }})">&laquo;</a></li>
+      {% endif %}
+      {% for n in page_obj.paginator.page_range %}
+        {% if page_obj.number == n %}
+        <li class="page-item active"><span class="page-link">{{ n }}</span></li>
+        {% elif n > page_obj.number|add:"-3" and n < page_obj.number|add:"3" %}
+        <li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage({{ n }})">{{ n }}</a></li>
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}
+      <li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_obj.next_page_number }})">&raquo;</a></li>
+      {% endif %}
+    </ul></nav>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+  function goToPage(p) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('page', p); window.location.search = params.toString();
+  }
+</script>
+{% endblock %}
