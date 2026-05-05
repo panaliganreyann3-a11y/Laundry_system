@@ -306,6 +306,48 @@ class Payment(models.Model):
 # INVENTORY
 # ─────────────────────────────────────────
 
+class ActivityLog(models.Model):
+    CATEGORY_CHOICES = [
+        ('ORDER', 'Order'),
+        ('PAYMENT', 'Payment'),
+        ('INVENTORY', 'Inventory'),
+        ('SERVICE_USAGE', 'Service Usage'),
+        ('PRICING', 'Pricing'),
+        ('ACCOUNT', 'Account'),
+    ]
+
+    ACTION_CHOICES = [
+        ('CREATE', 'Create'),
+        ('UPDATE', 'Update'),
+        ('DELETE', 'Delete'),
+        ('STATUS', 'Status'),
+        ('PAYMENT', 'Payment'),
+        ('RESTOCK', 'Restock'),
+        ('DEDUCT', 'Deduct'),
+        ('VERIFY', 'Verify'),
+        ('REJECT', 'Reject'),
+        ('TOGGLE', 'Toggle'),
+    ]
+
+    actor = models.ForeignKey(
+        User, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='activity_logs'
+    )
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
+    action = models.CharField(max_length=30, choices=ACTION_CHOICES)
+    description = models.TextField()
+    target_type = models.CharField(max_length=100, blank=True, null=True)
+    target_id = models.PositiveBigIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        actor = self.actor.username if self.actor else 'System'
+        return f"{actor} - {self.get_action_display()} - {self.description[:60]}"
+
+
 class InventoryCategory(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)

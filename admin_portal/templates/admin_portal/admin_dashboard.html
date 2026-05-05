@@ -77,6 +77,34 @@
   </div>
 </div>
 
+<!-- Staff/Admin Activity -->
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong><i class="bi bi-activity me-2"></i>Staff/Admin Activity</strong>
+    <span class="badge bg-secondary">Latest</span>
+  </div>
+  <div class="list-group list-group-flush">
+    {% for activity in recent_activities %}
+    <div class="list-group-item px-4 py-3">
+      <div class="d-flex justify-content-between align-items-start gap-3">
+        <div>
+          <div class="fw-semibold" style="font-size:.9rem">{{ activity.description }}</div>
+          <small class="text-muted">
+            {{ activity.actor.username|default:"System" }} · {{ activity.created_at|timesince }} ago
+          </small>
+        </div>
+        <div class="text-end flex-shrink-0">
+          <span class="badge bg-primary-subtle text-primary border">{{ activity.get_category_display }}</span>
+          <span class="badge bg-light text-dark border">{{ activity.get_action_display }}</span>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="list-group-item text-center text-muted py-4">No recorded activity yet.</div>
+    {% endfor %}
+  </div>
+</div>
+
 <!-- Recent Activity Feed -->
 <div class="row g-3 mb-4">
   <div class="col-md-5">
@@ -186,8 +214,8 @@
       </div>
       <div class="col-md-3 d-flex gap-2">
         <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary btn-sm flex-fill">Clear</a>
-        <a href="{% url 'export_csv' %}" class="btn btn-outline-success btn-sm" title="Export CSV">
-          <i class="bi bi-download"></i>
+        <a href="{% url 'export_csv' %}" class="btn btn-outline-success btn-sm flex-fill" title="Download all orders as CSV">
+          <i class="bi bi-download me-1"></i>Export CSV
         </a>
       </div>
     </div>

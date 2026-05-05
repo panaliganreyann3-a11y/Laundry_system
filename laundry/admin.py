@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Customer, Order, Payment, PricingConfig, ServiceInventoryUsage
+from .models import ActivityLog, Customer, Order, Payment, PricingConfig, ServiceInventoryUsage
 
 @admin.register(PricingConfig)
 class PricingConfigAdmin(admin.ModelAdmin):
@@ -25,3 +25,10 @@ class PaymentAdmin(admin.ModelAdmin):
 class ServiceInventoryUsageAdmin(admin.ModelAdmin):
     list_display = ['service_type', 'item', 'quantity_per_kg', 'fixed_quantity', 'is_active']
     list_filter = ['service_type', 'is_active']
+
+
+@admin.register(ActivityLog)
+class ActivityLogAdmin(admin.ModelAdmin):
+    list_display = ['created_at', 'actor', 'category', 'action', 'description']
+    list_filter = ['category', 'action', 'created_at']
+    search_fields = ['description', 'actor__username']

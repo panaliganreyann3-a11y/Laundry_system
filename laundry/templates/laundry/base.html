@@ -127,6 +127,7 @@
     <a href="{% url 'customer_list' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Customers</a>
     <a href="{% url 'account_list' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Accounts</a>
     <a href="{% url 'reports' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Reports</a>
+    <a href="{% url 'activity_log' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Activity Log</a>
     {% else %}
     <a href="{% url 'delivery_tasks' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Dashboard</a>
     <a href="{% url 'delivery_tasks' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Pick-up/Delivery Task</a>
@@ -178,6 +179,9 @@
     </a>
     <a href="{% url 'service_inventory_usage' %}" class="sb-link {% if request.resolver_match.url_name == 'service_inventory_usage' %}active{% endif %}">
       <i class="bi bi-diagram-3"></i> Service Usage
+    </a>
+    <a href="{% url 'activity_log' %}" class="sb-link {% if request.resolver_match.url_name == 'activity_log' %}active{% endif %}">
+      <i class="bi bi-activity"></i> Activity Log
     </a>
     <a href="/admin/" class="sb-link">
       <i class="bi bi-gear"></i> Django Admin

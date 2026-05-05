@@ -23,6 +23,7 @@ from laundry.views import (
     deduct_inventory_for_order,
     generate_qr_for_order,
     is_admin,
+    log_activity,
     orders_created_on,
     refresh_order_payment_from_verified_records,
     staff_portal_required,
@@ -219,13 +220,20 @@ def add_customer(request):
         if not name or not contact:
             messages.error(request, "Name and contact are required.")
             return render(request, 'staff_portal/add_customer.html', {'is_admin': is_admin(request.user)})
-        Customer.objects.create(
+        customer = Customer.objects.create(
             name=name,
             contact=contact,
             email=request.POST.get('email', '').strip() or None,
             address=request.POST.get('address', '').strip() or None,
             notes=request.POST.get('notes', '').strip() or None,
             is_walk_in='is_walk_in' in request.POST,
+        )
+        log_activity(
+            request.user,
+            'ACCOUNT',
+            'CREATE',
+            f"Added customer profile '{customer.name}'.",
+            customer,
         )
         messages.success(request, f"Customer '{name}' added.")
         return redirect('customer_list')
@@ -245,6 +253,13 @@ def edit_customer(request, customer_id):
         customer.notes = request.POST.get('notes', '').strip() or None
         customer.is_walk_in = 'is_walk_in' in request.POST
         customer.save()
+        log_activity(
+            request.user,
+            'ACCOUNT',
+            'UPDATE',
+            f"Updated customer profile '{customer.name}'.",
+            customer,
+        )
         messages.success(request, f"Customer '{customer.name}' updated.")
         return redirect('customer_detail', customer_id=customer.id)
     return render(request, 'staff_portal/edit_customer.html', {
@@ -339,6 +354,13 @@ def add_order(request):
         order.save()
 
         generate_qr_for_order(order)
+        log_activity(
+            request.user,
+            'ORDER',
+            'CREATE',
+            f"Created walk-in Order #{order.id} for {order.customer.name}.",
+            order,
+        )
         messages.success(request, f"Order #{order.id} (Q#{queue_number}) created for {order.customer.name}!")
         return redirect('admin_dashboard' if is_admin(request.user) else 'staff_dashboard')
 
@@ -378,7 +400,15 @@ def update_status(request, order_id):
     if next_status == 'COMPLETED' and order.payment_status != 'PAID':
         messages.error(request, "Payment must be fully paid before completing the order.")
         return redirect(request.META.get('HTTP_REFERER', 'staff_dashboard'))
+    old_status = order.status
     if advance_order_status(order, request.user):
+        log_activity(
+            request.user,
+            'ORDER',
+            'STATUS',
+            f"Moved Order #{order.id} from {old_status} to {order.status}.",
+            order,
+        )
         messages.success(request, f"Order #{order.id} → {order.get_status_display()}")
     return redirect(request.META.get('HTTP_REFERER', 'admin_dashboard' if is_admin(request.user) else 'staff_dashboard'))
 
@@ -398,6 +428,13 @@ def accept_pickup_request(request, order_id):
     order.decline_reason = None
     order.declined_at = None
     order.save(update_fields=['status', 'assigned_to', 'decline_reason', 'declined_at', 'updated_at'])
+    log_activity(
+        request.user,
+        'ORDER',
+        'STATUS',
+        f"Accepted pickup request for Order #{order.id}.",
+        order,
+    )
     messages.success(request, f"Pickup request #{order.id} accepted and assigned to you.")
     return redirect('staff_dashboard')
 
@@ -424,6 +461,13 @@ def decline_pickup_request(request, order_id):
     order.assigned_to = request.user
     order.save(update_fields=['status', 'payment_status', 'decline_reason', 'declined_at', 'assigned_to', 'updated_at'])
     order.payments.filter(status='PENDING').update(status='CANCELLED')
+    log_activity(
+        request.user,
+        'ORDER',
+        'STATUS',
+        f"Declined pickup request for Order #{order.id}: {reason}.",
+        order,
+    )
     messages.success(request, f"Pickup request #{order.id} declined.")
     return redirect('staff_dashboard')
 
@@ -441,7 +485,15 @@ def bulk_update_status(request):
             count = 0
             for oid in order_ids:
                 order = Order.objects.filter(id=oid).first()
+                old_status = order.status if order else None
                 if order and order.status != 'PENDING_PICKUP' and advance_order_status(order, request.user):
+                    log_activity(
+                        request.user,
+                        'ORDER',
+                        'STATUS',
+                        f"Bulk moved Order #{order.id} from {old_status} to {order.status}.",
+                        order,
+                    )
                     count += 1
             messages.success(request, f"{count} order(s) advanced.")
         elif action == 'mark_paid':
@@ -462,6 +514,13 @@ def bulk_update_status(request):
                         paid_at=timezone.now(),
                     )
                     refresh_order_payment_from_verified_records(order)
+                    log_activity(
+                        request.user,
+                        'PAYMENT',
+                        'PAYMENT',
+                        f"Marked Order #{order.id} as paid during bulk update.",
+                        order,
+                    )
                     count += 1
             messages.success(request, f"{count} order(s) marked as paid.")
     return redirect('admin_dashboard' if is_admin(request.user) else 'staff_dashboard')
@@ -488,6 +547,13 @@ def mark_paid(request, order_id):
         paid_at=timezone.now(),
     )
     refresh_order_payment_from_verified_records(order)
+    log_activity(
+        request.user,
+        'PAYMENT',
+        'PAYMENT',
+        f"Marked Order #{order.id} as paid.",
+        order,
+    )
     messages.success(request, f"Order #{order.id} marked as paid.")
     return redirect(request.META.get('HTTP_REFERER', 'admin_dashboard' if is_admin(request.user) else 'staff_dashboard'))
 
@@ -501,6 +567,13 @@ def verify_payment(request, payment_id):
     payment.paid_at = timezone.now()
     payment.save(update_fields=['status', 'verified_by', 'paid_at', 'updated_at'])
     refresh_order_payment_from_verified_records(payment.order)
+    log_activity(
+        request.user,
+        'PAYMENT',
+        'VERIFY',
+        f"Verified GCash payment #{payment.id} for Order #{payment.order_id}.",
+        payment,
+    )
     messages.success(request, f"GCash payment #{payment.id} verified.")
     return redirect(request.META.get('HTTP_REFERER', 'admin_dashboard' if is_admin(request.user) else 'staff_dashboard'))
 
@@ -516,6 +589,13 @@ def reject_payment(request, payment_id):
     if not order.payments.filter(status='VERIFIED').exists():
         order.payment_status = 'REJECTED'
         order.save(update_fields=['payment_status', 'updated_at'])
+    log_activity(
+        request.user,
+        'PAYMENT',
+        'REJECT',
+        f"Rejected GCash payment #{payment.id} for Order #{payment.order_id}.",
+        payment,
+    )
     messages.success(request, f"GCash payment #{payment.id} rejected.")
     return redirect(request.META.get('HTTP_REFERER', 'admin_dashboard' if is_admin(request.user) else 'staff_dashboard'))
 
@@ -542,6 +622,13 @@ def confirm_cod_payment(request, order_id):
         paid_at=timezone.now(),
     )
     refresh_order_payment_from_verified_records(order)
+    log_activity(
+        request.user,
+        'PAYMENT',
+        'PAYMENT',
+        f"Recorded COD payment for Order #{order.id}.",
+        order,
+    )
     messages.success(request, f"Cash payment recorded for Order #{order.id}.")
     return redirect(request.META.get('HTTP_REFERER', 'staff_dashboard'))
 
@@ -635,6 +722,13 @@ def edit_order(request, order_id):
             order.update_balance()
 
         order.save()
+        log_activity(
+            request.user,
+            'ORDER',
+            'UPDATE',
+            f"Updated Order #{order.id} for {order.customer.name}.",
+            order,
+        )
         messages.success(request, f"Order #{order.id} updated.")
         return redirect('admin_dashboard' if is_admin(request.user) else 'staff_dashboard')
 
@@ -728,6 +822,13 @@ def restock_item(request, item_id):
             notes=notes or f"Restocked by {request.user.username}",
             performed_by=request.user,
         )
+        log_activity(
+            request.user,
+            'INVENTORY',
+            'RESTOCK',
+            f"Restocked {quantity} {item.unit} of {item.name}.",
+            item,
+        )
         messages.success(request, f"+{quantity} {item.unit} added to '{item.name}'. New stock: {item.current_stock}")
         return redirect('inventory_detail', item_id=item.id)
     return render(request, 'laundry/inventory.html', {
@@ -765,6 +866,13 @@ def deduct_stock(request, item_id):
             reference_order_id=reference_order_id,
             notes=notes or f"Deducted by {request.user.username}",
             performed_by=request.user,
+        )
+        log_activity(
+            request.user,
+            'INVENTORY',
+            'DEDUCT',
+            f"Deducted {quantity} {item.unit} from {item.name}.",
+            item,
         )
         messages.success(request, f"-{quantity} {item.unit} from '{item.name}'. Remaining: {item.current_stock}")
         return redirect('inventory_detail', item_id=item.id)

@@ -9,6 +9,7 @@ urlpatterns = [
     path('admin-dashboard/', staff_required(views.admin_dashboard), name='admin_dashboard'),
     path('pricing/', staff_required(views.pricing_settings), name='pricing_settings'),
     path('reports/', staff_required(views.reports), name='reports'),
+    path('activity-log/', staff_required(views.activity_log), name='activity_log'),
     path('export-csv/', staff_required(views.export_csv), name='export_csv'),
     path('accounts/', staff_required(views.account_list), name='account_list'),
     path('accounts/add/', staff_required(views.add_account), name='add_account'),

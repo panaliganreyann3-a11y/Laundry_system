@@ -1,0 +1,133 @@
+{% extends 'laundry/base.html' %}
+{% block title %}Activity Log{% endblock %}
+{% block page_title %}Activity Log{% endblock %}
+
+{% block content %}
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-3 col-sm-6">
+        <label class="form-label small text-muted mb-1">Search</label>
+        <input type="search" name="search" class="form-control form-control-sm"
+               value="{{ search }}" placeholder="Description, actor, target">
+      </div>
+      <div class="col-md-2 col-sm-6">
+        <label class="form-label small text-muted mb-1">Category</label>
+        <select name="category" class="form-select form-select-sm">
+          <option value="">All categories</option>
+          {% for value, label in category_choices %}
+            <option value="{{ value }}" {% if category_filter == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 col-sm-6">
+        <label class="form-label small text-muted mb-1">Action</label>
+        <select name="action" class="form-select form-select-sm">
+          <option value="">All actions</option>
+          {% for value, label in action_choices %}
+            <option value="{{ value }}" {% if action_filter == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 col-sm-6">
+        <label class="form-label small text-muted mb-1">Actor</label>
+        <select name="actor" class="form-select form-select-sm">
+          <option value="">All users</option>
+          {% for staff in staff_users %}
+            <option value="{{ staff.id }}" {% if actor_filter == staff.id|stringformat:"s" %}selected{% endif %}>{{ staff.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-1 col-6">
+        <label class="form-label small text-muted mb-1">From</label>
+        <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}">
+      </div>
+      <div class="col-md-1 col-6">
+        <label class="form-label small text-muted mb-1">To</label>
+        <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to }}">
+      </div>
+      <div class="col-md-1 d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+        <a href="{% url 'activity_log' %}" class="btn btn-outline-secondary btn-sm">Reset</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong><i class="bi bi-activity me-2"></i>Activity Log</strong>
+    <span class="badge bg-light text-dark border">{{ activity_count }} records</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Time</th>
+          <th>Actor</th>
+          <th>Category</th>
+          <th>Action</th>
+          <th>Description</th>
+          <th>Target</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for activity in activities %}
+        <tr>
+          <td style="white-space:nowrap">
+            <strong>{{ activity.created_at|date:"M d, Y" }}</strong>
+            <div class="text-muted small">{{ activity.created_at|time:"g:i A" }}</div>
+          </td>
+          <td>{{ activity.actor.username|default:"System" }}</td>
+          <td><span class="badge bg-primary-subtle text-primary border">{{ activity.get_category_display }}</span></td>
+          <td><span class="badge bg-light text-dark border">{{ activity.get_action_display }}</span></td>
+          <td>{{ activity.description }}</td>
+          <td class="text-muted small">
+            {% if activity.target_type %}
+              {{ activity.target_type }}{% if activity.target_id %} #{{ activity.target_id }}{% endif %}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-4">No activity records found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<div class="d-flex justify-content-between align-items-center mt-3">
+  <small class="text-muted">
+    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+  </small>
+  <nav>
+    <ul class="pagination pagination-sm mb-0">
+      {% if page_obj.has_previous %}
+      <li class="page-item">
+        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search }}&category={{ category_filter }}&action={{ action_filter }}&actor={{ actor_filter }}&date_from={{ date_from }}&date_to={{ date_to }}">Previous</a>
+      </li>
+      {% endif %}
+      {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ num }}&search={{ search }}&category={{ category_filter }}&action={{ action_filter }}&actor={{ actor_filter }}&date_from={{ date_from }}&date_to={{ date_to }}">{{ num }}</a>
+        </li>
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}
+      <li class="page-item">
+        <a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search }}&category={{ category_filter }}&action={{ action_filter }}&actor={{ actor_filter }}&date_from={{ date_from }}&date_to={{ date_to }}">Next</a>
+      </li>
+      {% endif %}
+    </ul>
+  </nav>
+</div>
+{% endif %}
+
+{% endblock %}

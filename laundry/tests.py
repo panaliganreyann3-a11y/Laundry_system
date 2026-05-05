@@ -3,7 +3,7 @@ from django.contrib.auth.models import User, Group
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Customer, Order, PricingConfig
+from .models import ActivityLog, Customer, Order, PricingConfig
 
 
 def make_admin(username='admin', password='adminpass123'):
@@ -133,6 +133,28 @@ class RoleBasedAccessTest(TestCase):
         self.client.force_login(self.admin)
         response = self.client.get(reverse('reports'))
         self.assertEqual(response.status_code, 200)
+
+    def test_admin_can_access_activity_log(self):
+        ActivityLog.objects.create(
+            actor=self.admin,
+            category='ACCOUNT',
+            action='CREATE',
+            description='Created a test account.',
+        )
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('activity_log'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Created a test account.')
+
+    def test_staff_cannot_access_activity_log(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('activity_log'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_nav_includes_activity_log(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('admin_dashboard'))
+        self.assertContains(response, reverse('activity_log'))
 
     def test_staff_cannot_access_reports(self):
         self.client.force_login(self.staff)

@@ -11,7 +11,7 @@ import qrcode
 from django.conf import settings
 from django.core.files.base import ContentFile
 
-from .models import Order, ServiceInventoryUsage, StockMovement
+from .models import ActivityLog, Order, ServiceInventoryUsage, StockMovement
 
 ITEMS_PER_PAGE = 20
 
@@ -62,6 +62,27 @@ def customer_required(view_func):
     return wrapper
 
 
+def log_activity(actor, category, action, description, target=None):
+    if actor is not None and not getattr(actor, 'is_authenticated', False):
+        actor = None
+    target_type = None
+    target_id = None
+    if target is not None:
+        target_type = target._meta.label
+        target_id = target.pk
+    try:
+        ActivityLog.objects.create(
+            actor=actor,
+            category=category,
+            action=action,
+            description=description,
+            target_type=target_type,
+            target_id=target_id,
+        )
+    except Exception:
+        pass
+
+
 def deduct_inventory_for_order(order, user):
     if order.inventory_deducted_at:
         return True, "Inventory was already deducted for this order."
@@ -99,6 +120,14 @@ def deduct_inventory_for_order(order, user):
 
     order.inventory_deducted_at = timezone.now()
     order.save(update_fields=['inventory_deducted_at', 'updated_at'])
+    summary = ', '.join(f"{quantity} {item.unit} {item.name}" for item, quantity in deductions)
+    log_activity(
+        user,
+        'INVENTORY',
+        'DEDUCT',
+        f"Auto deducted inventory for Order #{order.id}: {summary}.",
+        order,
+    )
     return True, f"Inventory deducted for Order #{order.id}."
 
 

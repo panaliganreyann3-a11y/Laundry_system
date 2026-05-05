@@ -21,11 +21,13 @@ from laundry.models import (
     PricingConfig,
     ServiceInventoryUsage,
     StockMovement,
+    ActivityLog,
 )
 from laundry.views import (
     ITEMS_PER_PAGE,
     is_admin,
     local_day_range,
+    log_activity,
     orders_created_on,
     staff_portal_required,
 )
@@ -98,6 +100,7 @@ def admin_dashboard(request):
     unpaid_orders = orders.filter(payment_status__in=['UNPAID', 'PARTIAL', 'PENDING_VERIFICATION']).exclude(status__in=['COMPLETED', 'CANCELLED']).count()
     unpaid_revenue = orders.filter(payment_status__in=['UNPAID', 'PARTIAL']).aggregate(t=Sum('balance'))['t'] or 0
     recent_orders = Order.objects.select_related('customer').order_by('-created_at')[:5]
+    recent_activities = ActivityLog.objects.select_related('actor')[:8]
 
     last_7 = [today - timezone.timedelta(days=i) for i in range(6, -1, -1)]
     daily_rev = (Order.objects.filter(created_at__date__gte=last_7[0])
@@ -125,6 +128,7 @@ def admin_dashboard(request):
         'unpaid_orders': unpaid_orders,
         'unpaid_revenue': unpaid_revenue,
         'recent_orders': recent_orders,
+        'recent_activities': recent_activities,
         'is_admin': True,
         'search': search,
         'tab': tab,
@@ -165,13 +169,20 @@ def pricing_settings(request):
                 config.gcash_qr = request.FILES['gcash_qr']
             config.save()
         else:
-            PricingConfig.objects.create(
+            config = PricingConfig.objects.create(
                 price_per_kg=ppk,
                 rush_surcharge=rush,
                 gcash_number=request.POST.get('gcash_number', '').strip() or None,
                 gcash_qr=request.FILES.get('gcash_qr'),
             )
         messages.success(request, "Pricing updated.")
+        log_activity(
+            request.user,
+            'PRICING',
+            'UPDATE',
+            f"Updated pricing to {ppk}/kg with rush surcharge {rush}.",
+            config,
+        )
         return redirect('pricing_settings')
     return render(request, 'admin_portal/pricing.html', {'config': config, 'is_admin': True})
 
@@ -230,6 +241,70 @@ def reports(request):
         'avg_order_value': avg_value,
         'date_from': date_from.isoformat(),
         'date_to': date_to.isoformat(),
+    })
+
+
+@login_required
+def activity_log(request):
+    if not is_admin(request.user):
+        return HttpResponseForbidden()
+
+    activities = ActivityLog.objects.select_related('actor').order_by('-created_at')
+
+    search = request.GET.get('search', '').strip()
+    category_filter = request.GET.get('category', '').strip()
+    action_filter = request.GET.get('action', '').strip()
+    actor_filter = request.GET.get('actor', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+
+    if search:
+        activities = activities.filter(
+            Q(description__icontains=search)
+            | Q(actor__username__icontains=search)
+            | Q(target_type__icontains=search)
+        )
+    if category_filter:
+        activities = activities.filter(category=category_filter)
+    if action_filter:
+        activities = activities.filter(action=action_filter)
+    if actor_filter.isdigit():
+        activities = activities.filter(actor_id=actor_filter)
+
+    try:
+        parsed_from = date_type.fromisoformat(date_from) if date_from else None
+    except ValueError:
+        parsed_from = None
+        date_from = ''
+    try:
+        parsed_to = date_type.fromisoformat(date_to) if date_to else None
+    except ValueError:
+        parsed_to = None
+        date_to = ''
+
+    if parsed_from:
+        activities = activities.filter(created_at__date__gte=parsed_from)
+    if parsed_to:
+        activities = activities.filter(created_at__date__lte=parsed_to)
+
+    activity_count = activities.count()
+    paginator = Paginator(activities, 30)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+
+    return render(request, 'admin_portal/activity_log.html', {
+        'activities': page_obj,
+        'page_obj': page_obj,
+        'activity_count': activity_count,
+        'search': search,
+        'category_filter': category_filter,
+        'action_filter': action_filter,
+        'actor_filter': actor_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'category_choices': ActivityLog.CATEGORY_CHOICES,
+        'action_choices': ActivityLog.ACTION_CHOICES,
+        'staff_users': User.objects.filter(is_active=True).order_by('username'),
+        'is_admin': True,
     })
 
 
@@ -355,6 +430,13 @@ def add_account(request):
             group, _ = Group.objects.get_or_create(name='Staff')
             user.groups.add(group)
         messages.success(request, f"{role.title()} account '{username}' created.")
+        log_activity(
+            request.user,
+            'ACCOUNT',
+            'CREATE',
+            f"Created {role} account '{username}'.",
+            user,
+        )
         return redirect('account_list')
     return render(request, 'admin_portal/add_account.html', {'is_admin': True})
 
@@ -370,6 +452,14 @@ def toggle_account(request, user_id):
             return redirect('account_list')
         user.is_active = not user.is_active
         user.save()
+        state = 'activated' if user.is_active else 'deactivated'
+        log_activity(
+            request.user,
+            'ACCOUNT',
+            'TOGGLE',
+            f"{state.title()} account '{user.username}'.",
+            user,
+        )
         messages.success(request, f"'{user.username}' {'activated' if user.is_active else 'deactivated'}.")
     return redirect('account_list')
 
@@ -386,6 +476,13 @@ def reset_password(request, user_id):
             return redirect('account_list')
         user.set_password(pw)
         user.save()
+        log_activity(
+            request.user,
+            'ACCOUNT',
+            'UPDATE',
+            f"Reset password for account '{user.username}'.",
+            user,
+        )
         messages.success(request, f"Password for '{user.username}' reset.")
     return redirect('account_list')
 
@@ -397,6 +494,14 @@ def delete_order(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     if request.method == 'POST':
         num = order.id
+        customer_name = order.customer.name
+        log_activity(
+            request.user,
+            'ORDER',
+            'DELETE',
+            f"Deleted Order #{num} for {customer_name}.",
+            order,
+        )
         order.delete()
         messages.success(request, f"Order #{num} deleted.")
         return redirect('admin_dashboard')
@@ -444,6 +549,13 @@ def add_inventory_item(request):
                 item=item, movement_type='RESTOCK', quantity=current_stock,
                 notes='Initial stock entry', performed_by=request.user,
             )
+        log_activity(
+            request.user,
+            'INVENTORY',
+            'CREATE',
+            f"Added inventory item '{item.name}' with {current_stock} {item.unit} initial stock.",
+            item,
+        )
         messages.success(request, f"'{name}' added to inventory.")
         return redirect('inventory_detail', item_id=item.id)
 
@@ -480,8 +592,9 @@ def service_inventory_usage(request):
                     usage.fixed_quantity = fixed_quantity
                     usage.is_active = 'is_active' in request.POST
                     usage.save()
+                    usage_action = 'UPDATE'
                 else:
-                    usage, _ = ServiceInventoryUsage.objects.update_or_create(
+                    usage, created = ServiceInventoryUsage.objects.update_or_create(
                         service_type=service_type,
                         item_id=item_id,
                         defaults={
@@ -490,9 +603,21 @@ def service_inventory_usage(request):
                             'is_active': 'is_active' in request.POST,
                         },
                     )
+                    usage_action = 'CREATE' if created else 'UPDATE'
             except IntegrityError:
                 messages.error(request, "A rule already exists for that service and item.")
                 return redirect('service_inventory_usage')
+            log_activity(
+                request.user,
+                'SERVICE_USAGE',
+                usage_action,
+                (
+                    f"{'Created' if usage_action == 'CREATE' else 'Updated'} usage rule for "
+                    f"{usage.get_service_type_display()} using {usage.item.name}: "
+                    f"{usage.quantity_per_kg}/kg, fixed {usage.fixed_quantity}."
+                ),
+                usage,
+            )
             if rule_id:
                 messages.success(request, f"Usage rule updated for {usage.get_service_type_display()} - {usage.item.name}.")
             else:
@@ -551,6 +676,14 @@ def toggle_service_inventory_usage(request, rule_id):
     if request.method == 'POST':
         rule.is_active = not rule.is_active
         rule.save(update_fields=['is_active'])
+        state = 'enabled' if rule.is_active else 'disabled'
+        log_activity(
+            request.user,
+            'SERVICE_USAGE',
+            'TOGGLE',
+            f"{state.title()} usage rule for {rule.get_service_type_display()} using {rule.item.name}.",
+            rule,
+        )
         messages.success(request, "Usage rule updated.")
     return redirect('service_inventory_usage')
 
@@ -562,6 +695,13 @@ def delete_service_inventory_usage(request, rule_id):
     if request.method == 'POST':
         service_name = rule.get_service_type_display()
         item_name = rule.item.name
+        log_activity(
+            request.user,
+            'SERVICE_USAGE',
+            'DELETE',
+            f"Removed usage rule for {service_name} using {item_name}.",
+            rule,
+        )
         rule.delete()
         messages.success(request, f"Removed usage rule for {service_name} - {item_name}.")
     return redirect('service_inventory_usage')
