@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Smart Laundry{% endblock %}</title>
+  <title>{% block title %}{{ site_settings.site_name }}{% endblock %}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
   <style>
@@ -17,105 +17,57 @@
     }
     * { box-sizing: border-box; }
     body { display: flex; min-height: 100vh; margin: 0; background: var(--page-bg); font-family: 'Segoe UI', system-ui, sans-serif; }
-
-    /* ── Sidebar ── */
-    #sidebar {
-      width: 240px; background: var(--sb-bg); flex-shrink: 0;
-      display: flex; flex-direction: column;
-      position: sticky; top: 0; height: 100vh; overflow-y: auto;
-    }
-    .sb-brand {
-      padding: 18px 16px; border-bottom: 1px solid rgba(255,255,255,.07);
-      display: flex; align-items: center; gap: 10px;
-    }
-    .sb-brand .brand-box {
-      width: 36px; height: 36px; background: var(--accent);
-      border-radius: 8px; display: flex; align-items: center;
-      justify-content: center; font-size: 1.1rem; flex-shrink: 0;
-    }
+    #sidebar { width: 240px; background: var(--sb-bg); flex-shrink: 0; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .sb-brand { padding: 18px 16px; border-bottom: 1px solid rgba(255,255,255,.07); display: flex; align-items: center; gap: 10px; }
+    .brand-box,.user-photo { width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; color: #fff; font-weight: 700; flex-shrink: 0; }
+    .user-photo { border-radius: 50%; background: #1c3461; border: 1px solid rgba(255,255,255,.35); }
+    .brand-box img,.user-photo img { width: 100%; height: 100%; object-fit: cover; }
     .sb-brand span { color: white; font-weight: 700; font-size: 0.95rem; }
     .sb-section { padding: 14px 10px 2px; }
-    .sb-label {
-      font-size: .6rem; font-weight: 700; letter-spacing: 1.5px;
-      text-transform: uppercase; color: rgba(255,255,255,.3);
-      padding: 0 8px; display: block; margin-bottom: 2px;
-    }
-    #sidebar a.sb-link {
-      display: flex; align-items: center; gap: 9px;
-      color: var(--sb-text); padding: 8px 12px; border-radius: 8px;
-      text-decoration: none; font-size: .85rem; margin-bottom: 1px;
-      transition: background .15s, color .15s;
-    }
+    .sb-label { font-size: .6rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.3); padding: 0 8px; display: block; margin-bottom: 2px; }
+    #sidebar a.sb-link { display: flex; align-items: center; gap: 9px; color: var(--sb-text); padding: 8px 12px; border-radius: 8px; text-decoration: none; font-size: .85rem; margin-bottom: 1px; transition: background .15s, color .15s; }
     #sidebar a.sb-link:hover { background: var(--sb-hover); color: #fff; }
     #sidebar a.sb-link.active { background: var(--accent); color: #fff; }
     #sidebar a.sb-link i { font-size: .95rem; width: 18px; }
-    .sb-footer {
-      margin-top: auto; padding: 14px 16px;
-      border-top: 1px solid rgba(255,255,255,.07);
-    }
+    .sb-footer { margin-top: auto; padding: 14px 16px; border-top: 1px solid rgba(255,255,255,.07); }
     .sb-user { color: rgba(255,255,255,.5); font-size: .7rem; }
     .sb-username { color: #fff; font-weight: 600; font-size: .85rem; }
-
-    /* ── Main ── */
     #main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-    .top-bar {
-      background: #fff; padding: 12px 28px;
-      border-bottom: 1px solid #e8ecf0;
-      display: flex; justify-content: space-between; align-items: center;
-      position: sticky; top: 0; z-index: 200;
-      box-shadow: 0 1px 3px rgba(0,0,0,.06);
-    }
+    .top-bar { background: #fff; padding: 12px 28px; border-bottom: 1px solid #e8ecf0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 200; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
     .top-bar h5 { font-weight: 700; font-size: 1rem; color: #1a1a2e; }
+    .top-user { display: flex; align-items: center; gap: 10px; }
     .page-content { padding: 24px 28px; flex: 1; }
-
-    /* ── Cards ── */
     .card { border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.07); }
-    .card-header {
-      background: #fff; border-bottom: 1px solid #f0f0f0;
-      border-radius: 12px 12px 0 0 !important;
-      padding: 14px 20px; font-size: .9rem;
-    }
-
-    /* ── KPI Cards ── */
+    .card-header { background: #fff; border-bottom: 1px solid #f0f0f0; border-radius: 12px 12px 0 0 !important; padding: 14px 20px; font-size: .9rem; }
     .kpi { border-radius: 14px; overflow: hidden; padding: 20px; }
     .kpi .kpi-val { font-size: 1.8rem; font-weight: 800; line-height: 1; }
     .kpi .kpi-label { font-size: .75rem; font-weight: 500; opacity: .8; margin-bottom: 6px; }
     .kpi .kpi-icon { font-size: 2rem; opacity: .25; }
-    .kpi-primary   { background: linear-gradient(135deg,#0d6efd,#0a58ca); color:#fff; }
-    .kpi-teal      { background: linear-gradient(135deg,#20c997,#17a589); color:#fff; }
-    .kpi-warning   { background: linear-gradient(135deg,#ffc107,#e0a800); color:#fff; }
-    .kpi-success   { background: linear-gradient(135deg,#198754,#146c43); color:#fff; }
-    .kpi-danger    { background: linear-gradient(135deg,#dc3545,#b02a37); color:#fff; }
-    .kpi-purple    { background: linear-gradient(135deg,#6610f2,#520dc2); color:#fff; }
-
-    /* ── Tables ── */
-    .table th {
-      font-size: .7rem; text-transform: uppercase; letter-spacing: .6px;
-      color: #8a94a8; font-weight: 700; padding: 10px 14px;
-    }
+    .kpi-primary { background: linear-gradient(135deg,#0d6efd,#0a58ca); color:#fff; }
+    .kpi-teal { background: linear-gradient(135deg,#20c997,#17a589); color:#fff; }
+    .kpi-warning { background: linear-gradient(135deg,#ffc107,#e0a800); color:#fff; }
+    .kpi-success { background: linear-gradient(135deg,#198754,#146c43); color:#fff; }
+    .kpi-danger { background: linear-gradient(135deg,#dc3545,#b02a37); color:#fff; }
+    .kpi-purple { background: linear-gradient(135deg,#6610f2,#520dc2); color:#fff; }
+    .table th { font-size: .7rem; text-transform: uppercase; letter-spacing: .6px; color: #8a94a8; font-weight: 700; padding: 10px 14px; }
     .table td { padding: 10px 14px; vertical-align: middle; font-size: .85rem; }
     .table-hover tbody tr:hover { background: #f8faff; }
-
-    /* ── Misc ── */
     .badge { font-weight: 500; font-size: .72rem; }
     .page-link { font-size: .8rem; }
     a { color: #0d6efd; }
-
-    /* ── Mobile Nav ── */
+    .mobile-nav { display: none; }
     @media (max-width: 768px) {
       #sidebar { display: none; }
       .page-content { padding: 70px 14px 20px; }
       .mobile-nav { display: flex !important; }
     }
-    .mobile-nav { display: none; }
   </style>
 </head>
 <body>
 
-<!-- Mobile Top Nav -->
 <nav class="navbar navbar-dark mobile-nav w-100 position-fixed" style="background:var(--sb-bg);z-index:999;top:0;">
   <div class="container-fluid">
-    <span class="navbar-brand fw-bold">🧺 Smart Laundry</span>
+    <span class="navbar-brand fw-bold">{{ site_settings.site_name }}</span>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mobileMenu">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -124,9 +76,10 @@
     {% if is_admin %}
     <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Dashboard</a>
     <a href="{% url 'customer_list' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Customers</a>
-    <a href="{% url 'account_list' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Accounts</a>
+    <a href="{% url 'inventory_list' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Inventory</a>
     <a href="{% url 'reports' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Reports</a>
-    <a href="{% url 'activity_log' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Activity Log</a>
+    <a href="{% url 'account_list' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Accounts</a>
+    <a href="{% url 'branding_settings' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Branding</a>
     {% else %}
     <a href="{% url 'delivery_tasks' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Pick-up/Delivery Task</a>
     <a href="{% url 'walkin_tasks' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Walk-in Task</a>
@@ -138,11 +91,12 @@
   </div>
 </nav>
 
-<!-- Sidebar -->
 <div id="sidebar">
   <div class="sb-brand">
-    <div class="brand-box">🧺</div>
-    <span>Smart Laundry</span>
+    <div class="brand-box">
+      {% if site_settings.logo %}<img src="{{ site_settings.logo.url }}" alt="{{ site_settings.site_name }}">{% else %}SK{% endif %}
+    </div>
+    <span>{{ site_settings.site_name }}</span>
   </div>
 
   {% if is_admin %}
@@ -157,6 +111,12 @@
     <a href="{% url 'customer_list' %}" class="sb-link {% if request.resolver_match.url_name == 'customer_list' %}active{% endif %}">
       <i class="bi bi-people"></i> Customers
     </a>
+    <a href="{% url 'inventory_list' %}" class="sb-link {% if request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'add_inventory_item' or request.resolver_match.url_name == 'inventory_detail' or request.resolver_match.url_name == 'low_stock_alert' or request.resolver_match.url_name == 'stock_history' or request.resolver_match.url_name == 'restock_item' or request.resolver_match.url_name == 'deduct_stock' %}active{% endif %}">
+      <i class="bi bi-boxes"></i> Inventory
+    </a>
+    <a href="{% url 'service_inventory_usage' %}" class="sb-link {% if request.resolver_match.url_name == 'service_inventory_usage' %}active{% endif %}">
+      <i class="bi bi-diagram-3"></i> Service Usage
+    </a>
   </div>
   <div class="sb-section">
     <span class="sb-label">Admin</span>
@@ -166,14 +126,11 @@
     <a href="{% url 'pricing_settings' %}" class="sb-link {% if request.resolver_match.url_name == 'pricing_settings' %}active{% endif %}">
       <i class="bi bi-tags"></i> Pricing
     </a>
-    <a href="{% url 'account_list' %}" class="sb-link {% if request.resolver_match.url_name == 'account_list' or request.resolver_match.url_name == 'add_account' or request.resolver_match.url_name == 'staff_list' or request.resolver_match.url_name == 'add_staff' %}active{% endif %}">
+    <a href="{% url 'account_list' %}" class="sb-link {% if request.resolver_match.url_name == 'account_list' or request.resolver_match.url_name == 'add_account' %}active{% endif %}">
       <i class="bi bi-person-vcard"></i> Accounts
     </a>
-    <a href="{% url 'inventory_list' %}" class="sb-link {% if request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'add_inventory_item' or request.resolver_match.url_name == 'inventory_detail' or request.resolver_match.url_name == 'low_stock_alert' or request.resolver_match.url_name == 'stock_history' or request.resolver_match.url_name == 'restock_item' or request.resolver_match.url_name == 'deduct_stock' %}active{% endif %}">
-      <i class="bi bi-boxes"></i> Inventory
-    </a>
-    <a href="{% url 'service_inventory_usage' %}" class="sb-link {% if request.resolver_match.url_name == 'service_inventory_usage' %}active{% endif %}">
-      <i class="bi bi-diagram-3"></i> Service Usage
+    <a href="{% url 'branding_settings' %}" class="sb-link {% if request.resolver_match.url_name == 'branding_settings' %}active{% endif %}">
+      <i class="bi bi-image"></i> Branding
     </a>
     <a href="{% url 'activity_log' %}" class="sb-link {% if request.resolver_match.url_name == 'activity_log' %}active{% endif %}">
       <i class="bi bi-activity"></i> Activity Log
@@ -197,15 +154,22 @@
     <a href="{% url 'customer_list' %}" class="sb-link {% if request.resolver_match.url_name == 'customer_list' %}active{% endif %}">
       <i class="bi bi-people"></i> Customers
     </a>
-    <a href="{% url 'inventory_list' %}" class="sb-link {% if request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'add_inventory_item' or request.resolver_match.url_name == 'inventory_detail' or request.resolver_match.url_name == 'low_stock_alert' or request.resolver_match.url_name == 'stock_history' or request.resolver_match.url_name == 'restock_item' or request.resolver_match.url_name == 'deduct_stock' %}active{% endif %}">
+    <a href="{% url 'inventory_list' %}" class="sb-link {% if request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'inventory_detail' or request.resolver_match.url_name == 'restock_item' or request.resolver_match.url_name == 'deduct_stock' %}active{% endif %}">
       <i class="bi bi-boxes"></i> Inventory
     </a>
   </div>
   {% endif %}
 
   <div class="sb-footer">
-    <div class="sb-user">Logged in as</div>
-    <div class="sb-username">{{ request.user.username }}</div>
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <div class="user-photo">
+        {% if current_profile.avatar %}<img src="{{ current_profile.avatar.url }}" alt="{{ request.user.username }}">{% else %}{{ request.user.username|first|upper }}{% endif %}
+      </div>
+      <div>
+        <div class="sb-user">Logged in as</div>
+        <div class="sb-username">{{ request.user.get_full_name|default:request.user.username }}</div>
+      </div>
+    </div>
     <span class="badge mt-1 {% if is_admin %}bg-danger{% else %}bg-primary{% endif %}">
       {% if is_admin %}Admin{% else %}Staff{% endif %}
     </span>
@@ -217,7 +181,6 @@
   </div>
 </div>
 
-<!-- Main Content -->
 <div id="main">
   <div class="top-bar">
     <h5 class="mb-0">{% block page_title %}Dashboard{% endblock %}</h5>
@@ -236,6 +199,7 @@
   <div class="page-content">
     {% block content %}{% endblock %}
   </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

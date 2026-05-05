@@ -20,8 +20,10 @@ from laundry.models import (
     Order,
     PricingConfig,
     ServiceInventoryUsage,
+    SiteSettings,
     StockMovement,
     ActivityLog,
+    UserProfile,
 )
 from laundry.views import (
     ITEMS_PER_PAGE,
@@ -188,6 +190,29 @@ def pricing_settings(request):
         )
         return redirect('pricing_settings')
     return render(request, 'admin_portal/pricing.html', {'config': config, 'is_admin': True})
+
+
+@login_required
+def branding_settings(request):
+    if not is_admin(request.user):
+        return HttpResponseForbidden()
+    settings = SiteSettings.load()
+    if request.method == 'POST':
+        settings.site_name = request.POST.get('site_name', '').strip() or settings.site_name
+        settings.subtitle = request.POST.get('subtitle', '').strip() or settings.subtitle
+        if request.FILES.get('logo'):
+            settings.logo = request.FILES['logo']
+        settings.save()
+        log_activity(
+            request.user,
+            'ACCOUNT',
+            'UPDATE',
+            f"Updated site branding for {settings.site_name}.",
+            settings,
+        )
+        messages.success(request, "Branding updated.")
+        return redirect('branding_settings')
+    return render(request, 'admin_portal/branding.html', {'settings': settings, 'is_admin': True})
 
 
 @login_required
@@ -389,6 +414,7 @@ def add_account(request):
             return redirect('add_account')
 
         user = User.objects.create_user(username=username, email=email, password=password)
+        UserProfile.objects.get_or_create(user=user)
         if role == 'admin':
             user.is_superuser = True
             user.is_staff = True
@@ -464,6 +490,34 @@ def toggle_account(request, user_id):
             user,
         )
         messages.success(request, f"'{user.username}' {'activated' if user.is_active else 'deactivated'}.")
+    return redirect('account_list')
+
+
+@login_required
+def update_account_photo(request, user_id):
+    if not is_admin(request.user):
+        return HttpResponseForbidden()
+    user = get_object_or_404(User, id=user_id)
+    if request.method != 'POST':
+        return redirect('account_list')
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    if request.POST.get('remove_avatar') == '1':
+        profile.avatar.delete(save=False)
+        profile.avatar = None
+    elif request.FILES.get('avatar'):
+        profile.avatar = request.FILES['avatar']
+    else:
+        messages.error(request, "Choose an image before saving.")
+        return redirect('account_list')
+    profile.save()
+    messages.success(request, f"Updated photo for {user.username}.")
+    log_activity(
+        request.user,
+        'ACCOUNT',
+        'UPDATE',
+        f"Updated account photo for '{user.username}'.",
+        user,
+    )
     return redirect('account_list')
 
 

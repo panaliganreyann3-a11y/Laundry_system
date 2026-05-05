@@ -18,6 +18,38 @@ class PricingConfig(models.Model):
         return f"₱{self.price_per_kg}/kg (Rush: +₱{self.rush_surcharge})"
 
 
+class SiteSettings(models.Model):
+    site_name = models.CharField(max_length=120, default='Spin King Laundry Hub')
+    subtitle = models.CharField(max_length=160, default='Laundry Management System')
+    logo = models.ImageField(upload_to='branding/', blank=True, null=True)
+    footer_description = models.TextField(default="Keeping Bayawan's clothes fresh since day one. Fast, clean, and reliable laundry service.")
+    footer_location = models.CharField(max_length=160, default='Bayawan City, Negros Oriental, Philippines')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Site Settings'
+        verbose_name_plural = 'Site Settings'
+
+    @classmethod
+    def load(cls):
+        settings, _ = cls.objects.get_or_create(id=1)
+        return settings
+
+    def __str__(self):
+        return self.site_name
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name='profile'
+    )
+    avatar = models.ImageField(upload_to='user_avatars/', blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username} profile"
+
+
 class Customer(models.Model):
     user = models.OneToOneField(
         User, on_delete=models.SET_NULL,

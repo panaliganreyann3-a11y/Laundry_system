@@ -1,9 +1,20 @@
 from django.contrib import admin
-from .models import ActivityLog, Customer, Order, Payment, PricingConfig, ServiceInventoryUsage
+from .models import ActivityLog, Customer, Order, Payment, PricingConfig, ServiceInventoryUsage, SiteSettings, UserProfile
 
 @admin.register(PricingConfig)
 class PricingConfigAdmin(admin.ModelAdmin):
-    list_display = ['price_per_kg', 'rush_surcharge', 'updated_at']
+    list_display = ['price_per_kg', 'rush_surcharge', 'delivery_fee', 'updated_at']
+
+
+@admin.register(SiteSettings)
+class SiteSettingsAdmin(admin.ModelAdmin):
+    list_display = ['site_name', 'subtitle', 'updated_at']
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ['user', 'updated_at']
+    search_fields = ['user__username', 'user__email']
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):

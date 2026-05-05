@@ -6,6 +6,13 @@
     {% endif %}
     <span class="badge bg-{{ role_class }} ms-1">{{ role_badge }}</span>
   </td>
+  <td>
+    {% if member.profile.avatar %}
+    <img src="{{ member.profile.avatar.url }}" alt="{{ member.username }}" class="rounded-circle border" style="width:38px;height:38px;object-fit:cover">
+    {% else %}
+    <span class="rounded-circle bg-dark text-white d-inline-flex align-items-center justify-content-center" style="width:38px;height:38px">{{ member.username|first|upper }}</span>
+    {% endif %}
+  </td>
   <td>{{ member.email|default:"-" }}</td>
   <td>{{ member.date_joined|date:"M d, Y" }}</td>
   <td>
@@ -28,6 +35,9 @@
     <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#resetModal{{ member.id }}">
       <i class="bi bi-key me-1"></i>Reset
     </button>
+    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#photoModal{{ member.id }}">
+      <i class="bi bi-image me-1"></i>Photo
+    </button>
   </td>
 </tr>
 
@@ -47,6 +57,33 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-danger">Reset Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="photoModal{{ member.id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Update Photo - {{ member.username }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{% url 'update_account_photo' member.id %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body">
+          <input type="file" name="avatar" class="form-control" accept="image/*">
+          {% if member.profile.avatar %}
+          <div class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" name="remove_avatar" value="1" id="removeAvatar{{ member.id }}">
+            <label class="form-check-label" for="removeAvatar{{ member.id }}">Remove current photo</label>
+          </div>
+          {% endif %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Photo</button>
         </div>
       </form>
     </div>

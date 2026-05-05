@@ -1,0 +1,42 @@
+{% extends 'laundry/base.html' %}
+{% block title %}Branding{% endblock %}
+{% block page_title %}Branding{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card shadow">
+      <div class="card-header">
+        <strong><i class="bi bi-image me-2"></i>Site Branding</strong>
+      </div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">System Name</label>
+              <input type="text" name="site_name" class="form-control" value="{{ settings.site_name }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Subtitle</label>
+              <input type="text" name="subtitle" class="form-control" value="{{ settings.subtitle }}" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">Logo</label>
+              {% if settings.logo %}
+              <div class="mb-2">
+                <img src="{{ settings.logo.url }}" alt="Current logo" class="rounded-circle border" style="width:64px;height:64px;object-fit:cover">
+              </div>
+              {% endif %}
+              <input type="file" name="logo" class="form-control" accept="image/*">
+            </div>
+          </div>
+          <button class="btn btn-primary w-100 mt-4">
+            <i class="bi bi-save me-1"></i>Save Branding
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
