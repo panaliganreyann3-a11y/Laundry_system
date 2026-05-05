@@ -1,0 +1,18 @@
+.usage-card .card-header { padding: 12px 16px; }
+.usage-table-wrap { background: #2f302d; border: 1px solid #484945; border-radius: 8px; overflow: hidden; }
+.usage-table { --bs-table-bg: transparent; --bs-table-color: #f5f5f0; margin-bottom: 0; }
+.usage-table thead th { background: #353631; color: #d4d1ca; border-bottom-color: #484945; font-size: .68rem; letter-spacing: .35px; padding: 8px 10px; }
+.usage-table tbody td { border-top: 1px solid #444540; color: #f4f4ef; font-size: .78rem; font-weight: 700; padding: 7px 10px; white-space: nowrap; }
+.usage-table tbody tr:hover td { background: #383934; }
+.usage-service { border-radius: 4px; display: inline-flex; align-items: center; min-height: 18px; padding: 2px 8px; font-size: .68rem; font-weight: 800; line-height: 1.2; }
+.usage-service-wash_dry_fold,.usage-service-wash_dry { background: #a8d3fb; color: #164269; }
+.usage-service-wash { background: #e5e2dc; color: #46423c; }
+.usage-service-dry_only { background: #ffd47d; color: #5d3d00; }
+.usage-service-iron { background: #ffc5b4; color: #713325; }
+.usage-service-express { background: #f5c2da; color: #70314e; }
+.usage-toggle { --bs-btn-padding-x: .3rem; --bs-btn-padding-y: .05rem; --bs-btn-font-size: .8rem; min-width: 24px; color: #f4f4ef; border: 0; }
+.usage-toggle:hover,.usage-toggle:focus { color: #a8d3fb; }
+.usage-actions { display: flex; justify-content: center; gap: 4px; }
+.usage-action-btn { --bs-btn-padding-x: .28rem; --bs-btn-padding-y: .08rem; --bs-btn-font-size: .78rem; color: #f4f4ef; border: 0; min-width: 24px; }
+.usage-action-btn:hover,.usage-action-btn:focus { color: #a8d3fb; }
+.usage-action-danger:hover,.usage-action-danger:focus { color: #ffb4a8; }

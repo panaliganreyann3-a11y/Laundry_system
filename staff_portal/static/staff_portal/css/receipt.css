@@ -1,0 +1,5 @@
+@media print {
+  #sidebar, .top-bar, .d-flex.gap-2 { display: none !important; }
+  #main { padding: 0 !important; }
+  .card { box-shadow: none !important; border: 1px solid #ddd; }
+}

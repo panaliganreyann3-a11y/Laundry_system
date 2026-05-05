@@ -1,6 +1,9 @@
 {% extends 'laundry/base.html' %}
+{% load static %}
 {% block title %}Kanban Board{% endblock %}
 {% block page_title %}Task Board{% endblock %}
+{% block extra_css %}<link href="{% static 'staff_portal/css/kanban.css' %}" rel="stylesheet">{% endblock %}
+{% block extra_js %}<script src="{% static 'staff_portal/js/kanban.js' %}"></script>{% endblock %}
 
 {% block content %}
 {% load laundry_filters %}
@@ -191,14 +194,4 @@
 
 </div>
 
-<script>
-  document.querySelectorAll('.confirm-btn').forEach(b => {
-    b.addEventListener('click', e => { if (!confirm(b.dataset.msg)) e.preventDefault(); });
-  });
-</script>
-
-<style>
-  .kanban-card { transition: transform .15s, box-shadow .15s; }
-  .kanban-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.12) !important; }
-</style>
 {% endblock %}

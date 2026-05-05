@@ -232,14 +232,4 @@
   </div>
 </div>
 
-<script>
-  document.querySelectorAll('.confirm-btn').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-      if (!confirm(this.dataset.msg)) {
-        e.preventDefault();
-      }
-    });
-  });
-</script>
-
 {% endblock %}

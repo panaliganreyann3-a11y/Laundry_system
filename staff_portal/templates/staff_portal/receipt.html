@@ -1,6 +1,8 @@
 {% extends 'laundry/base.html' %}
+{% load static %}
 {% block title %}Receipt #{{ order.id }}{% endblock %}
 {% block page_title %}Order Receipt #{{ order.id }}{% endblock %}
+{% block extra_css %}<link href="{% static 'staff_portal/css/receipt.css' %}" rel="stylesheet">{% endblock %}
 
 {% block content %}
 {% load laundry_filters %}
@@ -101,14 +103,5 @@
 
   </div>
 </div>
-
-<!-- Print Styles -->
-<style>
-  @media print {
-    #sidebar, .top-bar, .d-flex.gap-2 { display: none !important; }
-    #main { padding: 0 !important; }
-    .card { box-shadow: none !important; border: 1px solid #ddd; }
-  }
-</style>
 
 {% endblock %}

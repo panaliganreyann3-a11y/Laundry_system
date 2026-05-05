@@ -1,6 +1,8 @@
 {% extends 'laundry/base.html' %}
+{% load static %}
 {% block title %}Customers{% endblock %}
 {% block page_title %}Customer Management{% endblock %}
+{% block extra_js %}<script src="{% static 'staff_portal/js/customer_list.js' %}"></script>{% endblock %}
 
 {% block content %}
 {% load laundry_filters %}
@@ -142,10 +144,4 @@
   {% endif %}
 </div>
 
-<script>
-  function goToPage(p) {
-    const params = new URLSearchParams(window.location.search);
-    params.set('page', p); window.location.search = params.toString();
-  }
-</script>
 {% endblock %}

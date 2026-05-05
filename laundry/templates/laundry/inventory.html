@@ -1,5 +1,6 @@
 {% extends 'laundry/base.html' %}
-{% load laundry_filters %}
+{% load laundry_filters static %}
+{% block extra_js %}<script src="{% static 'laundry/js/inventory.js' %}"></script>{% endblock %}
 
 {% block title %}
   {% if section == 'list' %}Inventory
@@ -338,6 +339,10 @@
       <i class="bi bi-arrow-left me-1"></i>Back to {{ item.name }}
     </a>
   </div>
+  <div id="inventoryStockData" class="d-none"
+       data-current-stock="{{ item.current_stock }}"
+       data-input-unit="{{ item.unit }}"
+       data-display-unit="{{ item.unit|inventory_unit }}"></div>
 
   <div class="row justify-content-center">
     <div class="col-md-6">
@@ -404,19 +409,6 @@
     </div>
   </div>
 
-  <script>
-  const currentStock = {{ item.current_stock }};
-  const inputUnit = '{{ item.unit }}';
-  const displayUnit = '{{ item.unit|inventory_unit }}';
-  function displayQuantity(value) {
-    return inputUnit === 'ml' ? Math.round((value / 1000) * 10000) / 10000 : value;
-  }
-  function updateRestockPreview() {
-    const qty = parseFloat(document.getElementById('restockQty').value) || 0;
-    const newStock = Math.round((currentStock + qty) * 10000) / 10000;
-    document.getElementById('restockPreview').textContent = displayQuantity(newStock) + ' ' + displayUnit;
-  }
-  </script>
 
 
 {# ══════════════════════════════════════════════════════════════ #}
@@ -429,6 +421,10 @@
       <i class="bi bi-arrow-left me-1"></i>Back to {{ item.name }}
     </a>
   </div>
+  <div id="inventoryStockData" class="d-none"
+       data-current-stock="{{ item.current_stock }}"
+       data-input-unit="{{ item.unit }}"
+       data-display-unit="{{ item.unit|inventory_unit }}"></div>
 
   <div class="row justify-content-center">
     <div class="col-md-6">
@@ -518,20 +514,6 @@
     </div>
   </div>
 
-  <script>
-  const currentStock = {{ item.current_stock }};
-  const inputUnit = '{{ item.unit }}';
-  const displayUnit = '{{ item.unit|inventory_unit }}';
-  function displayQuantity(value) {
-    return inputUnit === 'ml' ? Math.round((value / 1000) * 10000) / 10000 : value;
-  }
-  function updateDeductPreview() {
-    const qty = parseFloat(document.getElementById('deductQty').value) || 0;
-    const remaining = Math.max(0, Math.round((currentStock - qty) * 10000) / 10000);
-    document.getElementById('deductPreview').textContent = displayQuantity(remaining) + ' ' + displayUnit;
-    document.getElementById('overStockWarning').classList.toggle('d-none', qty <= currentStock);
-  }
-  </script>
 
 
 {# ══════════════════════════════════════════════════════════════ #}
@@ -740,12 +722,6 @@
     {% endif %}
   </div>
 
-  <script>
-  function goToPage(p) {
-    const params = new URLSearchParams(window.location.search);
-    params.set('page', p); window.location.search = params.toString();
-  }
-  </script>
 
 
 {# ══════════════════════════════════════════════════════════════ #}
@@ -837,14 +813,6 @@
     </div>
   </div>
 
-  <script>
-  function toggleNewCat() {
-    const sel = document.getElementById('categorySelect');
-    const div = document.getElementById('newCatDiv');
-    div.style.display = sel.value === '__new__' ? 'block' : 'none';
-    if (sel.value === '__new__') sel.value = '';
-  }
-  </script>
 
 {% endif %}
 {# ══ End of all sections ══ #}

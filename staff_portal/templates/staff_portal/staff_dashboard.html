@@ -1,6 +1,8 @@
 {% extends 'laundry/base.html' %}
+{% load static %}
 {% block title %}Staff Dashboard{% endblock %}
 {% block page_title %}{{ task_title|default:"Staff Dashboard" }}{% endblock %}
+{% block extra_js %}<script src="{% static 'staff_portal/js/staff_dashboard.js' %}"></script>{% endblock %}
 
 {% block content %}
 {% load laundry_filters %}
@@ -322,23 +324,4 @@
   {% endif %}
 {% endfor %}
 
-<script>
-  document.querySelectorAll('.confirm-btn').forEach(b => {
-    b.addEventListener('click', e => { if (!confirm(b.dataset.msg)) e.preventDefault(); });
-  });
-  document.getElementById('selAll').addEventListener('change', function() {
-    document.querySelectorAll('.order-cb').forEach(c => c.checked = this.checked);
-    updateBulk();
-  });
-  document.querySelectorAll('.order-cb').forEach(c => c.addEventListener('change', updateBulk));
-  function updateBulk() {
-    const n = document.querySelectorAll('.order-cb:checked').length;
-    document.getElementById('bulkBar').classList.toggle('d-none', n === 0);
-    document.getElementById('selCount').textContent = n + ' selected';
-  }
-  function goToPage(p) {
-    const params = new URLSearchParams(window.location.search);
-    params.set('page', p); window.location.search = params.toString();
-  }
-</script>
 {% endblock %}
