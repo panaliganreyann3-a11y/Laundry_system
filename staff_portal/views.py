@@ -33,7 +33,7 @@ from laundry.views import (
 def staff_dashboard(request):
     if is_admin(request.user):
         return redirect('admin_dashboard')
-    return render_staff_task_dashboard(request, 'PICKUP_DELIVERY', 'Delivery Task', 'delivery_tasks')
+    return render_staff_task_dashboard(request, 'PICKUP_DELIVERY', 'Pick-up/Delivery Task', 'delivery_tasks')
 
 
 def render_staff_task_dashboard(request, order_type, task_title, clear_url_name):
@@ -74,7 +74,7 @@ def render_staff_task_dashboard(request, order_type, task_title, clear_url_name)
         'RECEIVED_AT_SHOP': ('Received at Shop', 'bi-inbox', '#6c757d', 'secondary'),
         'WEIGHED': ('Weighed', 'bi-speedometer2', '#17a2b8', 'info'),
         'BILL_SENT': ('Bill Sent', 'bi-receipt', '#0d6efd', 'primary'),
-        'PROCESSING': ('Processing', 'bi-droplet', '#ffc107', 'warning'),
+        'PROCESSING': ('Processing Service', 'bi-droplet', '#ffc107', 'warning'),
         'READY_FOR_PICKUP': ('Ready for Pickup', 'bi-bag-check', '#198754', 'success'),
         'READY_FOR_DELIVERY': ('Ready for Delivery', 'bi-bag-check', '#198754', 'success'),
         'OUT_FOR_DELIVERY': ('Out for Delivery', 'bi-truck-front', '#6610f2', 'primary'),
@@ -131,7 +131,7 @@ def render_staff_task_dashboard(request, order_type, task_title, clear_url_name)
 
 @login_required
 def delivery_tasks(request):
-    return render_staff_task_dashboard(request, 'PICKUP_DELIVERY', 'Delivery Task', 'delivery_tasks')
+    return render_staff_task_dashboard(request, 'PICKUP_DELIVERY', 'Pick-up/Delivery Task', 'delivery_tasks')
 
 
 @login_required
@@ -159,7 +159,7 @@ def kanban_board(request):
         'RECEIVED_AT_SHOP': ('Received at Shop', 'bi-inbox', '#6c757d', 'secondary'),
         'WEIGHED': ('Weighed', 'bi-speedometer2', '#17a2b8', 'info'),
         'BILL_SENT': ('Bill Sent', 'bi-receipt', '#0d6efd', 'primary'),
-        'PROCESSING': ('Processing', 'bi-droplet', '#ffc107', 'warning'),
+        'PROCESSING': ('Processing Service', 'bi-droplet', '#ffc107', 'warning'),
         'READY_FOR_PICKUP': ('Ready for Pickup', 'bi-bag-check', '#198754', 'success'),
         'READY_FOR_DELIVERY': ('Ready for Delivery', 'bi-bag-check', '#198754', 'success'),
         'OUT_FOR_DELIVERY': ('Out for Delivery', 'bi-truck-front', '#6610f2', 'primary'),
@@ -338,10 +338,6 @@ def add_order(request):
             order.update_payment_status_from_amount()
         order.save()
 
-        # Award 1 loyalty point per order
-        order.customer.loyalty_points += 1
-        order.customer.save(update_fields=['loyalty_points'])
-
         generate_qr_for_order(order)
         messages.success(request, f"Order #{order.id} (Q#{queue_number}) created for {order.customer.name}!")
         return redirect('admin_dashboard' if is_admin(request.user) else 'staff_dashboard')
@@ -370,6 +366,9 @@ def update_status(request, order_id):
         return redirect('edit_order', order_id=order.id)
     if next_status == 'OUT_FOR_DELIVERY' and order.payment_status != 'PAID':
         messages.error(request, "Payment must be fully paid before the order can go out for delivery.")
+        return redirect(request.META.get('HTTP_REFERER', 'staff_dashboard'))
+    if next_status == 'PROCESSING' and order.payment_method == 'GCASH' and order.payment_status != 'PAID':
+        messages.error(request, "GCash payment must be verified before processing service can start.")
         return redirect(request.META.get('HTTP_REFERER', 'staff_dashboard'))
     if next_status == 'PROCESSING':
         ok, message = deduct_inventory_for_order(order, request.user)

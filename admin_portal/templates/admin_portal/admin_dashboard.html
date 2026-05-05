@@ -292,7 +292,7 @@
               <div class="d-flex gap-1 flex-nowrap">
                 {% if o.get_next_status %}
                 <a href="{% url 'update_status' o.id %}" class="btn btn-sm btn-outline-primary confirm-btn"
-                   data-msg="Move Order #{{ o.id }} to {{ o.get_next_status }}?">
+                   data-msg="Move Order #{{ o.id }} to {{ o.get_next_status_label }}?">
                   <i class="bi bi-arrow-right-short"></i>
                 </a>
                 {% endif %}

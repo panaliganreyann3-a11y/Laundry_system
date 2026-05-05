@@ -30,10 +30,10 @@
       <i class="bi bi-kanban fs-1 text-primary opacity-50"></i>
       <div>
         <div class="fw-semibold">Task Queues</div>
-        <small class="text-muted">Switch between pickup/delivery and walk-in work</small>
+        <small class="text-muted">Switch between pick-up/delivery and walk-in work</small>
       </div>
       <div class="ms-auto d-flex gap-2">
-        <a href="{% url 'delivery_tasks' %}" class="btn btn-sm {% if task_type == 'PICKUP_DELIVERY' %}btn-primary{% else %}btn-outline-primary{% endif %}">Delivery <span class="badge bg-light text-dark">{{ delivery_count }}</span></a>
+        <a href="{% url 'delivery_tasks' %}" class="btn btn-sm {% if task_type == 'PICKUP_DELIVERY' %}btn-primary{% else %}btn-outline-primary{% endif %}">Pick-up/Delivery <span class="badge bg-light text-dark">{{ delivery_count }}</span></a>
         <a href="{% url 'walkin_tasks' %}" class="btn btn-sm {% if task_type == 'WALK_IN' %}btn-primary{% else %}btn-outline-primary{% endif %}">Walk-in <span class="badge bg-light text-dark">{{ walkin_count }}</span></a>
       </div>
     </div>
@@ -119,8 +119,8 @@
               </form>
               {% elif order.get_next_status %}
               <a href="{% url 'update_status' order.id %}" class="btn btn-sm btn-outline-primary flex-fill confirm-btn"
-                 data-msg="Move #{{ order.id }} to {{ order.get_next_status }}?">
-                {{ order.get_next_status }}
+                 data-msg="Move #{{ order.id }} to {{ order.get_next_status_label }}?">
+                {{ order.get_next_status_label }}
               </a>
               {% endif %}
               <a href="{% url 'edit_order' order.id %}" class="btn btn-sm btn-outline-warning">
@@ -216,7 +216,7 @@
                 </button>
                 {% elif o.get_next_status %}
                 <a href="{% url 'update_status' o.id %}" class="btn btn-sm btn-outline-primary confirm-btn"
-                   data-msg="Move #{{ o.id }} to {{ o.get_next_status }}?">
+                   data-msg="Move #{{ o.id }} to {{ o.get_next_status_label }}?">
                   <i class="bi bi-arrow-right-short"></i>
                 </a>
                 {% endif %}

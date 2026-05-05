@@ -113,6 +113,8 @@ def advance_order_status(order, user=None):
         return False
     if next_status == 'WEIGHED':
         order.calculate_totals()
+    if next_status == 'PROCESSING' and order.payment_method == 'GCASH' and order.payment_status != 'PAID':
+        return False
     if next_status == 'PROCESSING':
         ok, _ = deduct_inventory_for_order(order, user)
         if not ok:

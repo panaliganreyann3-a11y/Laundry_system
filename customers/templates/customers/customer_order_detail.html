@@ -70,6 +70,11 @@
           {% endif %}
         </div>
         {% endif %}
+        {% if order.payment_status == 'PENDING_VERIFICATION' %}
+        <div class="alert alert-warning mb-0">
+          Your GCash proof is waiting for staff verification.
+        </div>
+        {% else %}
         <form method="post" action="{% url 'submit_gcash_payment' order.id %}" enctype="multipart/form-data">
           {% csrf_token %}
           <div class="mb-3">
@@ -78,14 +83,15 @@
           </div>
           <div class="mb-3">
             <label class="form-label">Reference Number</label>
-            <input type="text" name="reference_number" class="form-control">
+            <input type="text" name="reference_number" class="form-control" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Proof Image</label>
-            <input type="file" name="proof_image" class="form-control" accept="image/*">
+            <input type="file" name="proof_image" class="form-control" accept="image/*" required>
           </div>
           <button class="btn btn-primary w-100">Submit Proof</button>
         </form>
+        {% endif %}
       </div>
     </div>
     {% endif %}
@@ -111,20 +117,6 @@
         {% empty %}
         <div class="list-group-item text-muted">No payment records yet.</div>
         {% endfor %}
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header bg-white"><strong>Status Flow</strong></div>
-      <div class="list-group list-group-flush">
-        <div class="list-group-item">Pending Pickup</div>
-        <div class="list-group-item">Pickup Confirmed</div>
-        <div class="list-group-item">Picked Up</div>
-        <div class="list-group-item">Received at Shop</div>
-        <div class="list-group-item">Weighed and Billed</div>
-        <div class="list-group-item">Processing</div>
-        <div class="list-group-item">Out for Delivery</div>
-        <div class="list-group-item">Delivered and Completed</div>
       </div>
     </div>
   </div>

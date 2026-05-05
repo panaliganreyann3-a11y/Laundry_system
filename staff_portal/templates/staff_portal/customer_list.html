@@ -52,7 +52,6 @@
           <th>Contact</th>
           <th>Address</th>
           <th class="text-center">Orders</th>
-          <th class="text-center">Loyalty Pts</th>
           <th>Last Visit</th>
           <th>Type</th>
           <th>Actions</th>
@@ -82,15 +81,6 @@
               {{ customer.order_count }}
             </span>
           </td>
-          <td class="text-center">
-            {% if customer.loyalty_points > 0 %}
-            <span class="badge bg-warning text-dark">
-              <i class="bi bi-star-fill me-1"></i>{{ customer.loyalty_points }}
-            </span>
-            {% else %}
-            <span class="text-muted small">0</span>
-            {% endif %}
-          </td>
           <td class="text-muted small">
             {% if customer.last_order %}
             {{ customer.last_order.created_at|date:"M d, Y" }}
@@ -118,7 +108,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="8" class="text-center text-muted py-5">
+          <td colspan="7" class="text-center text-muted py-5">
             <i class="bi bi-people" style="font-size:2rem"></i><br>
             No customers found
             {% if not search %}

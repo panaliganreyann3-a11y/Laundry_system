@@ -203,8 +203,6 @@ def customer_new_order(request):
             payment_status='UNPAID',
             queue_number=queue_number,
         )
-        customer.loyalty_points += 1
-        customer.save(update_fields=['loyalty_points'])
         generate_qr_for_order(order)
         messages.success(request, f"Pickup request #{order.id} submitted.")
         return redirect('customer_order_detail', order_id=order.id)
@@ -264,12 +262,17 @@ def submit_gcash_payment(request, order_id):
     if amount <= 0:
         messages.error(request, "Enter the amount paid through GCash.")
         return redirect('customer_order_detail', order_id=order.id)
+    reference_number = request.POST.get('reference_number', '').strip()
+    proof_image = request.FILES.get('proof_image')
+    if not reference_number or not proof_image:
+        messages.error(request, "GCash reference number and proof image are required.")
+        return redirect('customer_order_detail', order_id=order.id)
     payment = Payment.objects.create(
         order=order,
         payment_method='GCASH',
         amount=amount,
-        reference_number=request.POST.get('reference_number', '').strip() or None,
-        proof_image=request.FILES.get('proof_image'),
+        reference_number=reference_number,
+        proof_image=proof_image,
         status='PENDING',
     )
     order.payment_status = 'PENDING_VERIFICATION'

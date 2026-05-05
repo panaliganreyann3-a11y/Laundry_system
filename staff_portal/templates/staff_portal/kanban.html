@@ -132,9 +132,9 @@
           {% elif order.status != 'COMPLETED' and order.get_next_status %}
           <a href="{% url 'update_status' order.id %}"
              class="btn btn-sm btn-outline-primary flex-fill confirm-btn"
-             data-msg="Move #{{ order.id }} to {{ order.get_next_status }}?"
+             data-msg="Move #{{ order.id }} to {{ order.get_next_status_label }}?"
              style="font-size:.75rem; padding:3px 8px;">
-            <i class="bi bi-arrow-right me-1"></i>{{ order.get_next_status }}
+            <i class="bi bi-arrow-right me-1"></i>{{ order.get_next_status_label }}
           </a>
           {% endif %}
           <a href="{% url 'order_receipt' order.id %}"

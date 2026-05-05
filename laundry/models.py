@@ -27,7 +27,6 @@ class Customer(models.Model):
     email = models.EmailField(blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
-    loyalty_points = models.PositiveIntegerField(default=0)
     is_walk_in = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now)
 
@@ -58,7 +57,7 @@ class Order(models.Model):
         ('RECEIVED_AT_SHOP', 'Received at Shop'),
         ('WEIGHED', 'Weighed'),
         ('BILL_SENT', 'Bill Sent'),
-        ('PROCESSING', 'Processing'),
+        ('PROCESSING', 'Processing Service'),
         ('READY_FOR_PICKUP', 'Ready for Pickup'),
         ('READY_FOR_DELIVERY', 'Ready for Delivery'),
         ('OUT_FOR_DELIVERY', 'Out for Delivery'),
@@ -185,6 +184,12 @@ class Order(models.Model):
         if self.status == 'READY_FOR_DELIVERY':
             return 'OUT_FOR_DELIVERY' if self.order_type == 'PICKUP_DELIVERY' else 'COMPLETED'
         return flow.get(self.status, None)
+
+    def get_next_status_label(self):
+        next_status = self.get_next_status()
+        if not next_status:
+            return ''
+        return dict(self.STATUS_CHOICES).get(next_status, next_status)
 
     def is_complete(self):
         return self.status in ('COMPLETED', 'CANCELLED')

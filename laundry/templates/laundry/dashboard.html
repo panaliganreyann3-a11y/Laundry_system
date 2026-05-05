@@ -76,7 +76,7 @@
           <option value="">All</option>
           <option value="RECEIVED_AT_SHOP" {% if status_filter == 'RECEIVED_AT_SHOP' %}selected{% endif %}>Received at Shop</option>
           <option value="WEIGHED"  {% if status_filter == 'WEIGHED'  %}selected{% endif %}>Weighed</option>
-          <option value="PROCESSING"   {% if status_filter == 'PROCESSING'   %}selected{% endif %}>Processing</option>
+          <option value="PROCESSING"   {% if status_filter == 'PROCESSING'   %}selected{% endif %}>Processing Service</option>
           <option value="READY_FOR_PICKUP"    {% if status_filter == 'READY_FOR_PICKUP'    %}selected{% endif %}>Ready for Pickup</option>
           <option value="READY_FOR_DELIVERY"    {% if status_filter == 'READY_FOR_DELIVERY'    %}selected{% endif %}>Ready for Delivery</option>
           <option value="COMPLETED"  {% if status_filter == 'COMPLETED'  %}selected{% endif %}>Completed</option>
@@ -181,8 +181,8 @@
               {% if order.status != 'COMPLETED' %}
               <a href="{% url 'update_status' order.id %}"
                  class="btn btn-sm btn-outline-primary confirm-btn"
-                 data-msg="Move Order #{{ order.id }} to {{ order.get_next_status }}?">
-                → {{ order.get_next_status }}
+                 data-msg="Move Order #{{ order.id }} to {{ order.get_next_status_label }}?">
+                → {{ order.get_next_status_label }}
               </a>
               {% else %}
               <span class="text-muted">Done</span>
