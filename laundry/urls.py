@@ -61,6 +61,7 @@ urlpatterns = [
     path('inventory/history/', staff_required(views.stock_history), name='stock_history'),
     path('inventory/service-usage/', staff_required(views.service_inventory_usage), name='service_inventory_usage'),
     path('inventory/service-usage/<int:rule_id>/toggle/', staff_required(views.toggle_service_inventory_usage), name='toggle_service_inventory_usage'),
+    path('inventory/service-usage/<int:rule_id>/delete/', staff_required(views.delete_service_inventory_usage), name='delete_service_inventory_usage'),
     path('inventory/<int:item_id>/', staff_required(views.inventory_detail), name='inventory_detail'),
     path('inventory/<int:item_id>/restock/', staff_required(views.restock_item), name='restock_item'),
     path('inventory/<int:item_id>/deduct/', staff_required(views.deduct_stock), name='deduct_stock'),

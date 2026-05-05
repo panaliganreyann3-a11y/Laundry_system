@@ -7,8 +7,8 @@ from django.contrib.auth import authenticate, login as auth_login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group, User
 from django.core.paginator import Paginator
-from django.db import transaction
-from django.db.models import Count, ExpressionWrapper, F, FloatField, Q, Sum
+from django.db import IntegrityError, transaction
+from django.db.models import Case, Count, ExpressionWrapper, F, FloatField, IntegerField, Q, Sum, When
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
@@ -1615,6 +1615,7 @@ def service_inventory_usage(request):
         return HttpResponseForbidden()
 
     if request.method == 'POST':
+        rule_id = request.POST.get('rule_id')
         service_type = request.POST.get('service_type')
         item_id = request.POST.get('item')
         try:
@@ -1625,26 +1626,75 @@ def service_inventory_usage(request):
             return redirect('service_inventory_usage')
 
         if service_type and item_id and (quantity_per_kg > 0 or fixed_quantity > 0):
-            usage, _ = ServiceInventoryUsage.objects.update_or_create(
-                service_type=service_type,
-                item_id=item_id,
-                defaults={
-                    'quantity_per_kg': quantity_per_kg,
-                    'fixed_quantity': fixed_quantity,
-                    'is_active': 'is_active' in request.POST,
-                },
-            )
-            messages.success(request, f"Usage rule saved for {usage.get_service_type_display()} - {usage.item.name}.")
+            try:
+                if rule_id:
+                    usage = get_object_or_404(ServiceInventoryUsage, id=rule_id)
+                    usage.service_type = service_type
+                    usage.item_id = item_id
+                    usage.quantity_per_kg = quantity_per_kg
+                    usage.fixed_quantity = fixed_quantity
+                    usage.is_active = 'is_active' in request.POST
+                    usage.save()
+                else:
+                    usage, _ = ServiceInventoryUsage.objects.update_or_create(
+                        service_type=service_type,
+                        item_id=item_id,
+                        defaults={
+                            'quantity_per_kg': quantity_per_kg,
+                            'fixed_quantity': fixed_quantity,
+                            'is_active': 'is_active' in request.POST,
+                        },
+                    )
+            except IntegrityError:
+                messages.error(request, "A rule already exists for that service and item.")
+                return redirect('service_inventory_usage')
+            if rule_id:
+                messages.success(request, f"Usage rule updated for {usage.get_service_type_display()} - {usage.item.name}.")
+            else:
+                messages.success(request, f"Usage rule saved for {usage.get_service_type_display()} - {usage.item.name}.")
         else:
             messages.error(request, "Choose a service, item, and at least one quantity.")
         return redirect('service_inventory_usage')
 
-    rules = ServiceInventoryUsage.objects.select_related('item').order_by('service_type', 'item__name')
+    service_sort = Case(
+        When(service_type='WASH_DRY_FOLD', then=0),
+        When(service_type='WASH_DRY', then=1),
+        When(service_type='WASH', then=2),
+        When(service_type='DRY_ONLY', then=3),
+        When(service_type='IRON', then=4),
+        When(service_type='EXPRESS', then=5),
+        When(service_type='DRY_CLEAN', then=6),
+        default=99,
+        output_field=IntegerField(),
+    )
+    item_sort = Case(
+        When(item__name='Laundry Detergent', then=0),
+        When(item__name='Fabric Conditioner', then=1),
+        When(item__name='Color-Safe Bleach', then=2),
+        When(item__name='Disinfectant', then=3),
+        When(item__name='Laundry Plastic Bags', then=4),
+        When(item__name='Customer Tags', then=5),
+        When(item__name='Dryer Sheets', then=6),
+        When(item__name='Hangers', then=7),
+        default=99,
+        output_field=IntegerField(),
+    )
+    rules = (
+        ServiceInventoryUsage.objects.select_related('item')
+        .annotate(service_sort=service_sort, item_sort=item_sort)
+        .order_by('service_sort', 'item_sort', 'item__name')
+    )
     items = InventoryItem.objects.filter(is_active=True).order_by('name')
+    selected_rule = None
+    edit_id = request.GET.get('edit')
+    if edit_id:
+        selected_rule = get_object_or_404(ServiceInventoryUsage.objects.select_related('item'), id=edit_id)
+
     return render(request, 'service_inventory_usage.html', {
         'rules': rules,
         'items': items,
         'service_choices': Order.SERVICE_CHOICES,
+        'selected_rule': selected_rule,
         'is_admin': True,
     })
 
@@ -1658,6 +1708,19 @@ def toggle_service_inventory_usage(request, rule_id):
         rule.is_active = not rule.is_active
         rule.save(update_fields=['is_active'])
         messages.success(request, "Usage rule updated.")
+    return redirect('service_inventory_usage')
+
+
+@login_required
+def delete_service_inventory_usage(request, rule_id):
+    if not is_admin(request.user):
+        return HttpResponseForbidden()
+    rule = get_object_or_404(ServiceInventoryUsage.objects.select_related('item'), id=rule_id)
+    if request.method == 'POST':
+        service_name = rule.get_service_type_display()
+        item_name = rule.item.name
+        rule.delete()
+        messages.success(request, f"Removed usage rule for {service_name} - {item_name}.")
     return redirect('service_inventory_usage')
 
 

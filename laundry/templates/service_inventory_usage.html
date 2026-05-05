@@ -1,96 +1,240 @@
 {% extends 'base.html' %}
 {% load laundry_filters %}
-{% block title %}Service Inventory Usage{% endblock %}
-{% block page_title %}Service Inventory Usage{% endblock %}
+{% block title %}Service Usage{% endblock %}
+{% block page_title %}Service Usage{% endblock %}
 
 {% block content %}
+<style>
+  .usage-card .card-header {
+    padding: 12px 16px;
+  }
+  .usage-table-wrap {
+    background: #2f302d;
+    border: 1px solid #484945;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .usage-table {
+    --bs-table-bg: transparent;
+    --bs-table-color: #f5f5f0;
+    margin-bottom: 0;
+  }
+  .usage-table thead th {
+    background: #353631;
+    color: #d4d1ca;
+    border-bottom-color: #484945;
+    font-size: .68rem;
+    letter-spacing: .35px;
+    padding: 8px 10px;
+  }
+  .usage-table tbody td {
+    border-top: 1px solid #444540;
+    color: #f4f4ef;
+    font-size: .78rem;
+    font-weight: 700;
+    padding: 7px 10px;
+    white-space: nowrap;
+  }
+  .usage-table tbody tr:hover td {
+    background: #383934;
+  }
+  .usage-service {
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 18px;
+    padding: 2px 8px;
+    font-size: .68rem;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+  .usage-service-wash_dry_fold,
+  .usage-service-wash_dry {
+    background: #a8d3fb;
+    color: #164269;
+  }
+  .usage-service-wash {
+    background: #e5e2dc;
+    color: #46423c;
+  }
+  .usage-service-dry_only {
+    background: #ffd47d;
+    color: #5d3d00;
+  }
+  .usage-service-iron {
+    background: #ffc5b4;
+    color: #713325;
+  }
+  .usage-service-express {
+    background: #f5c2da;
+    color: #70314e;
+  }
+  .usage-toggle {
+    --bs-btn-padding-x: .3rem;
+    --bs-btn-padding-y: .05rem;
+    --bs-btn-font-size: .8rem;
+    min-width: 24px;
+    color: #f4f4ef;
+    border: 0;
+  }
+  .usage-toggle:hover,
+  .usage-toggle:focus {
+    color: #a8d3fb;
+  }
+  .usage-actions {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+  }
+  .usage-action-btn {
+    --bs-btn-padding-x: .28rem;
+    --bs-btn-padding-y: .08rem;
+    --bs-btn-font-size: .78rem;
+    color: #f4f4ef;
+    border: 0;
+    min-width: 24px;
+  }
+  .usage-action-btn:hover,
+  .usage-action-btn:focus {
+    color: #a8d3fb;
+  }
+  .usage-action-danger:hover,
+  .usage-action-danger:focus {
+    color: #ffb4a8;
+  }
+</style>
+
 <div class="row g-4">
-  <div class="col-lg-5">
-    <div class="card">
-      <div class="card-header"><strong>Add / Update Usage Rule</strong></div>
+  <div class="col-lg-4">
+    <div class="card usage-card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong id="usageFormTitle">{% if selected_rule %}Edit Service Usage{% else %}Add Service Usage{% endif %}</strong>
+        {% if selected_rule %}
+        <a href="{% url 'service_inventory_usage' %}" class="btn btn-sm btn-outline-secondary" title="Cancel edit">
+          <i class="bi bi-x-lg"></i>
+        </a>
+        {% endif %}
+      </div>
       <div class="card-body">
-        <form method="post">
+        <form method="post" id="usageForm">
           {% csrf_token %}
+          <input type="hidden" name="rule_id" id="ruleId" value="{% if selected_rule %}{{ selected_rule.id }}{% endif %}">
           <div class="mb-3">
             <label class="form-label fw-semibold">Service Type</label>
-            <select name="service_type" class="form-select" required>
+            <select name="service_type" id="serviceType" class="form-select" required>
               <option value="">Select service</option>
               {% for value, label in service_choices %}
-              <option value="{{ value }}">{{ label }}</option>
+              <option value="{{ value }}" {% if selected_rule and selected_rule.service_type == value %}selected{% endif %}>{{ label }}</option>
               {% endfor %}
             </select>
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Inventory Item</label>
-            <select name="item" class="form-select" required>
+            <select name="item" id="inventoryItem" class="form-select" required>
               <option value="">Select item</option>
               {% for item in items %}
-              <option value="{{ item.id }}">{{ item.name }} ({{ item.current_stock }} {{ item.unit }})</option>
+              <option value="{{ item.id }}" {% if selected_rule and selected_rule.item_id == item.id %}selected{% endif %}>{{ item.name }} ({{ item.current_stock }} {{ item.unit }})</option>
               {% endfor %}
             </select>
           </div>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Quantity per kg</label>
-            <input type="number" step="0.0001" min="0" name="quantity_per_kg" class="form-control" value="0">
+            <label class="form-label fw-semibold">Per kg</label>
+            <input type="number" step="0.0001" min="0" name="quantity_per_kg" id="quantityPerKg" class="form-control" value="{% if selected_rule %}{{ selected_rule.quantity_per_kg|floatformat:-4 }}{% else %}0{% endif %}">
             <div class="form-text">Example: 30 ml detergent per kg.</div>
           </div>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Fixed quantity per order</label>
-            <input type="number" step="0.0001" min="0" name="fixed_quantity" class="form-control" value="0">
+            <label class="form-label fw-semibold">Fixed / Order</label>
+            <input type="number" step="0.0001" min="0" name="fixed_quantity" id="fixedQuantity" class="form-control" value="{% if selected_rule %}{{ selected_rule.fixed_quantity|floatformat:-4 }}{% else %}0{% endif %}">
             <div class="form-text">Example: 1 laundry bag per order.</div>
           </div>
           <div class="form-check mb-3">
-            <input type="checkbox" name="is_active" id="isActive" class="form-check-input" checked>
+            <input type="checkbox" name="is_active" id="isActive" class="form-check-input" {% if not selected_rule or selected_rule.is_active %}checked{% endif %}>
             <label for="isActive" class="form-check-label">Active</label>
           </div>
-          <button class="btn btn-primary w-100">Save Rule</button>
+          <button class="btn btn-primary w-100" id="usageSubmitButton">{% if selected_rule %}Update Rule{% else %}Save Rule{% endif %}</button>
         </form>
       </div>
     </div>
   </div>
 
-  <div class="col-lg-7">
-    <div class="card">
+  <div class="col-lg-8">
+    <div class="card usage-card">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <strong>Current Rules</strong>
-        <a href="{% url 'inventory_list' %}" class="btn btn-sm btn-outline-secondary">Inventory</a>
+        <strong>Usage Rules</strong>
+        <a href="{% url 'inventory_list' %}" class="btn btn-sm btn-outline-secondary" title="Inventory">
+          <i class="bi bi-boxes"></i>
+        </a>
       </div>
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead class="table-light">
+      <div class="table-responsive usage-table-wrap">
+        <table class="table usage-table align-middle">
+          <thead>
             <tr>
-              <th>Service</th>
-              <th>Item</th>
-              <th>Per kg</th>
-              <th>Fixed</th>
-              <th>Status</th>
-              <th></th>
+              <th>Service Type</th>
+              <th>Inventory Item</th>
+              <th>Per Kg</th>
+              <th>Fixed / Order</th>
+              <th class="text-center">Active</th>
+              <th class="text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for rule in rules %}
             <tr>
-              <td>{{ rule.get_service_type_display }}</td>
-              <td>{{ rule.item.name }}</td>
-              <td>{{ rule.quantity_per_kg }} {{ rule.item.unit }}</td>
-              <td>{{ rule.fixed_quantity }} {{ rule.item.unit }}</td>
               <td>
-                {% if rule.is_active %}
-                <span class="badge bg-success">Active</span>
+                <span class="usage-service usage-service-{{ rule.service_type|lower }}">
+                  {{ rule.get_service_type_display }}
+                </span>
+              </td>
+              <td>{{ rule.item.name }}</td>
+              <td>
+                {% if rule.quantity_per_kg > 0 %}
+                  {{ rule.quantity_per_kg|floatformat:-4 }} {{ rule.item.unit }}
                 {% else %}
-                <span class="badge bg-secondary">Off</span>
+                  0
                 {% endif %}
               </td>
               <td>
+                {% if rule.fixed_quantity > 0 %}
+                  {{ rule.fixed_quantity|floatformat:-4 }}{% if rule.fixed_quantity == 1 and rule.item.unit == 'pcs' %}pc{% else %}{{ rule.item.unit }}{% endif %}
+                {% else %}
+                  0
+                {% endif %}
+              </td>
+              <td class="text-center">
                 <form method="post" action="{% url 'toggle_service_inventory_usage' rule.id %}">
                   {% csrf_token %}
-                  <button class="btn btn-sm btn-outline-secondary">{% if rule.is_active %}Disable{% else %}Enable{% endif %}</button>
+                  <button class="btn btn-sm usage-toggle" title="{% if rule.is_active %}Disable usage rule{% else %}Enable usage rule{% endif %}">
+                    {% if rule.is_active %}<i class="bi bi-check-lg"></i>{% else %}<i class="bi bi-dash-lg"></i>{% endif %}
+                  </button>
                 </form>
+              </td>
+              <td>
+                <div class="usage-actions">
+                  <button
+                    type="button"
+                    class="btn btn-sm usage-action-btn usage-edit-btn"
+                    title="Edit usage rule"
+                    data-rule-id="{{ rule.id }}"
+                    data-service-type="{{ rule.service_type }}"
+                    data-item-id="{{ rule.item_id }}"
+                    data-quantity-per-kg="{{ rule.quantity_per_kg|floatformat:-4 }}"
+                    data-fixed-quantity="{{ rule.fixed_quantity|floatformat:-4 }}"
+                    data-is-active="{% if rule.is_active %}1{% else %}0{% endif %}"
+                  >
+                    <i class="bi bi-pencil-square"></i>
+                  </button>
+                  <form method="post" action="{% url 'delete_service_inventory_usage' rule.id %}" onsubmit="return confirm('Remove this service usage rule?');">
+                    {% csrf_token %}
+                    <button class="btn btn-sm usage-action-btn usage-action-danger" title="Remove usage rule">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </form>
+                </div>
               </td>
             </tr>
             {% empty %}
             <tr>
-              <td colspan="6" class="text-center text-muted py-4">No usage rules yet.</td>
+              <td colspan="6" class="text-center py-4">No usage rules yet.</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -99,4 +243,19 @@
     </div>
   </div>
 </div>
+<script>
+  document.querySelectorAll('.usage-edit-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+      document.getElementById('ruleId').value = button.dataset.ruleId;
+      document.getElementById('serviceType').value = button.dataset.serviceType;
+      document.getElementById('inventoryItem').value = button.dataset.itemId;
+      document.getElementById('quantityPerKg').value = button.dataset.quantityPerKg;
+      document.getElementById('fixedQuantity').value = button.dataset.fixedQuantity;
+      document.getElementById('isActive').checked = button.dataset.isActive === '1';
+      document.getElementById('usageFormTitle').textContent = 'Edit Service Usage';
+      document.getElementById('usageSubmitButton').textContent = 'Update Rule';
+      document.getElementById('usageForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
 {% endblock %}

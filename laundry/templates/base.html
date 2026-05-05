@@ -172,7 +172,7 @@
     <a href="{% url 'staff_list' %}" class="sb-link {% if request.resolver_match.url_name == 'staff_list' %}active{% endif %}">
       <i class="bi bi-person-badge"></i> Staff
     </a>
-    <a href="{% url 'inventory_list' %}" class="sb-link {% if 'inventory' in request.resolver_match.url_name or 'stock' in request.resolver_match.url_name or 'restock' in request.resolver_match.url_name or 'deduct' in request.resolver_match.url_name %}active{% endif %}">
+    <a href="{% url 'inventory_list' %}" class="sb-link {% if request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'add_inventory_item' or request.resolver_match.url_name == 'inventory_detail' or request.resolver_match.url_name == 'low_stock_alert' or request.resolver_match.url_name == 'stock_history' or request.resolver_match.url_name == 'restock_item' or request.resolver_match.url_name == 'deduct_stock' %}active{% endif %}">
       <i class="bi bi-boxes"></i> Inventory
     </a>
     <a href="{% url 'service_inventory_usage' %}" class="sb-link {% if request.resolver_match.url_name == 'service_inventory_usage' %}active{% endif %}">
@@ -200,7 +200,7 @@
     <a href="{% url 'customer_list' %}" class="sb-link {% if request.resolver_match.url_name == 'customer_list' %}active{% endif %}">
       <i class="bi bi-people"></i> Customers
     </a>
-    <a href="{% url 'inventory_list' %}" class="sb-link {% if 'inventory' in request.resolver_match.url_name or 'stock' in request.resolver_match.url_name or 'restock' in request.resolver_match.url_name or 'deduct' in request.resolver_match.url_name %}active{% endif %}">
+    <a href="{% url 'inventory_list' %}" class="sb-link {% if request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'add_inventory_item' or request.resolver_match.url_name == 'inventory_detail' or request.resolver_match.url_name == 'low_stock_alert' or request.resolver_match.url_name == 'stock_history' or request.resolver_match.url_name == 'restock_item' or request.resolver_match.url_name == 'deduct_stock' %}active{% endif %}">
       <i class="bi bi-boxes"></i> Inventory
     </a>
   </div>
