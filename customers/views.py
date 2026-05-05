@@ -191,9 +191,10 @@ def customer_new_order(request):
             weight=0,
             price=0,
             price_per_kg=config.price_per_kg if config else 30.0,
+            delivery_fee=config.delivery_fee if config else 0.0,
             total_amount=0,
             amount_paid=0,
-            balance=0,
+            balance=config.delivery_fee if config else 0.0,
             pickup_address=pickup_address,
             delivery_address=delivery_address,
             preferred_pickup_at=preferred_pickup_at,
@@ -203,6 +204,12 @@ def customer_new_order(request):
             payment_status='UNPAID',
             queue_number=queue_number,
         )
+        order.calculate_totals()
+        order.update_balance()
+        order.save(update_fields=[
+            'laundry_fee', 'subtotal', 'price', 'total_amount', 'balance', 'overpayment',
+            'payment_status', 'updated_at'
+        ])
         generate_qr_for_order(order)
         messages.success(request, f"Pickup request #{order.id} submitted.")
         return redirect('customer_order_detail', order_id=order.id)

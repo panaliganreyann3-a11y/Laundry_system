@@ -6,6 +6,7 @@ from django.utils import timezone
 class PricingConfig(models.Model):
     price_per_kg = models.FloatField(default=30.0)
     rush_surcharge = models.FloatField(default=50.0)
+    delivery_fee = models.FloatField(default=0.0)
     gcash_number = models.CharField(max_length=30, blank=True, null=True)
     gcash_qr = models.ImageField(upload_to='gcash_qr/', blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)

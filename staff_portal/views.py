@@ -30,6 +30,13 @@ from laundry.views import (
 )
 
 
+def staff_assignee_queryset():
+    return User.objects.filter(
+        is_active=True,
+        groups__name='Staff',
+    ).exclude(is_superuser=True).distinct().order_by('username')
+
+
 @login_required
 def staff_dashboard(request):
     if is_admin(request.user):
@@ -274,7 +281,7 @@ def edit_customer(request, customer_id):
 def add_order(request):
     customers = Customer.objects.all().order_by('name')
     config = PricingConfig.objects.first()
-    staff_users = User.objects.filter(is_active=True).order_by('username')
+    staff_users = staff_assignee_queryset()
 
     if request.method == 'POST':
         customer_id = request.POST.get('customer')
@@ -285,6 +292,14 @@ def add_order(request):
         special_instructions = request.POST.get('special_instructions', '').strip() or None
         assigned_to_id = request.POST.get('assigned_to') or None
         due_date_raw = request.POST.get('due_date', '').strip()
+
+        if assigned_to_id and not staff_users.filter(id=assigned_to_id).exists():
+            messages.error(request, "Assign to Staff only accepts staff accounts.")
+            return render(request, 'staff_portal/add_order.html', {
+                'customers': customers, 'config': config,
+                'staff_users': staff_users, 'service_choices': Order.SERVICE_CHOICES,
+                'payment_methods': Order.PAYMENT_METHOD_CHOICES, 'is_admin': is_admin(request.user)
+            })
 
         try:
             weight = float(request.POST.get('weight', 0))
@@ -450,13 +465,10 @@ def decline_pickup_request(request, order_id):
         return redirect('staff_dashboard')
 
     reason = request.POST.get('decline_reason', '').strip()
-    if not reason:
-        messages.error(request, "Please enter a reason before declining the pickup request.")
-        return redirect('staff_dashboard')
 
     order.status = 'CANCELLED'
     order.payment_status = 'CANCELLED'
-    order.decline_reason = reason
+    order.decline_reason = reason or None
     order.declined_at = timezone.now()
     order.assigned_to = request.user
     order.save(update_fields=['status', 'payment_status', 'decline_reason', 'declined_at', 'assigned_to', 'updated_at'])
@@ -465,7 +477,7 @@ def decline_pickup_request(request, order_id):
         request.user,
         'ORDER',
         'STATUS',
-        f"Declined pickup request for Order #{order.id}: {reason}.",
+        f"Declined pickup request for Order #{order.id}." + (f" Reason: {reason}." if reason else ""),
         order,
     )
     messages.success(request, f"Pickup request #{order.id} declined.")
@@ -667,25 +679,35 @@ def edit_order(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     customers = Customer.objects.all()
     config = PricingConfig.objects.first()
-    staff_users = User.objects.filter(is_active=True).order_by('username')
+    staff_users = staff_assignee_queryset()
+    read_only_order = (
+        not is_admin(request.user)
+        and order.order_type == 'PICKUP_DELIVERY'
+        and order.status == 'PENDING_PICKUP'
+    )
+    context = {
+        'order': order,
+        'customers': customers,
+        'staff_users': staff_users,
+        'service_choices': Order.SERVICE_CHOICES,
+        'payment_methods': Order.PAYMENT_METHOD_CHOICES,
+        'is_admin': is_admin(request.user),
+        'read_only_order': read_only_order,
+    }
 
     if request.method == 'POST':
+        if read_only_order:
+            messages.error(request, "Pending pickup requests can only be viewed. Accept or decline the request to continue.")
+            return redirect('edit_order', order_id=order.id)
+
         try:
             weight = float(request.POST.get('weight', 0))
         except ValueError:
             messages.error(request, "Invalid weight.")
-            return render(request, 'staff_portal/edit_order.html', {
-                'order': order, 'customers': customers, 'staff_users': staff_users,
-                'service_choices': Order.SERVICE_CHOICES, 'payment_methods': Order.PAYMENT_METHOD_CHOICES,
-                'is_admin': is_admin(request.user)
-            })
+            return render(request, 'staff_portal/edit_order.html', context)
         if weight < 0 or (order.order_type == 'WALK_IN' and weight <= 0):
             messages.error(request, "Weight must be greater than 0 kg.")
-            return render(request, 'staff_portal/edit_order.html', {
-                'order': order, 'customers': customers, 'staff_users': staff_users,
-                'service_choices': Order.SERVICE_CHOICES, 'payment_methods': Order.PAYMENT_METHOD_CHOICES,
-                'is_admin': is_admin(request.user)
-            })
+            return render(request, 'staff_portal/edit_order.html', context)
 
         order.customer_id = request.POST.get('customer')
         order.weight = weight
@@ -693,7 +715,11 @@ def edit_order(request, order_id):
         order.is_priority = 'priority' in request.POST
         order.payment_method = request.POST.get('payment_method', order.payment_method)
         order.special_instructions = request.POST.get('special_instructions', '').strip() or None
-        order.assigned_to_id = request.POST.get('assigned_to') or None
+        assigned_to_id = request.POST.get('assigned_to') or None
+        if assigned_to_id and not staff_users.filter(id=assigned_to_id).exists():
+            messages.error(request, "Assign to Staff only accepts staff accounts.")
+            return render(request, 'staff_portal/edit_order.html', context)
+        order.assigned_to_id = assigned_to_id
         order.pickup_address = request.POST.get('pickup_address', '').strip() or None
         order.delivery_address = request.POST.get('delivery_address', '').strip() or None
         order.delivery_notes = request.POST.get('delivery_notes', '').strip() or None
@@ -732,14 +758,7 @@ def edit_order(request, order_id):
         messages.success(request, f"Order #{order.id} updated.")
         return redirect('admin_dashboard' if is_admin(request.user) else 'staff_dashboard')
 
-    return render(request, 'staff_portal/edit_order.html', {
-        'order': order,
-        'customers': customers,
-        'staff_users': staff_users,
-        'service_choices': Order.SERVICE_CHOICES,
-        'payment_methods': Order.PAYMENT_METHOD_CHOICES,
-        'is_admin': is_admin(request.user),
-    })
+    return render(request, 'staff_portal/edit_order.html', context)
 
 
 # ── Delete Order ──────────────────────────

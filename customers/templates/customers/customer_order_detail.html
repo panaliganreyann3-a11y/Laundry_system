@@ -26,6 +26,9 @@
           <dt class="col-sm-4">Type</dt><dd class="col-sm-8">{{ order.get_order_type_display }}</dd>
           <dt class="col-sm-4">Weight</dt><dd class="col-sm-8">{{ order.weight }} kg</dd>
           <dt class="col-sm-4">Laundry Fee</dt><dd class="col-sm-8">{{ order.laundry_fee|peso }}</dd>
+          {% if order.delivery_fee %}
+          <dt class="col-sm-4">Delivery Fee</dt><dd class="col-sm-8">{{ order.delivery_fee|peso }}</dd>
+          {% endif %}
           <dt class="col-sm-4">Total Amount</dt><dd class="col-sm-8">{{ order.total_amount|peso }}</dd>
           <dt class="col-sm-4">Amount Paid</dt><dd class="col-sm-8">{{ order.amount_paid|peso }}</dd>
           <dt class="col-sm-4">Balance</dt><dd class="col-sm-8">{{ order.balance|peso }}</dd>

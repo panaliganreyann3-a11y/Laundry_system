@@ -158,11 +158,11 @@
               {% elif item.is_low_stock %}style="background:#fffbf0"{% endif %}>
             <td class="fw-semibold">{{ item.name }}</td>
             <td><small class="text-muted">{{ item.category.name|default:"—" }}</small></td>
-            <td><small class="text-muted">{{ item.unit }}</small></td>
+            <td><small class="text-muted">{{ item.unit|inventory_unit }}</small></td>
             <td class="text-end fw-bold {% if item.current_stock <= 0 %}text-danger{% elif item.is_low_stock %}text-warning{% endif %}">
-              {{ item.current_stock }}
+              {{ item.current_stock|inventory_quantity:item.unit }}
             </td>
-            <td class="text-end text-muted small">{{ item.minimum_stock }}</td>
+            <td class="text-end text-muted small">{{ item.minimum_stock|inventory_quantity:item.unit }}</td>
             <td>
               <span class="badge bg-{{ item.stock_status.0 }}">{{ item.stock_status.1 }}</span>
             </td>
@@ -228,9 +228,9 @@
             {{ item.stock_status.1 }}
           </span>
           <div class="display-6 fw-bold {% if item.current_stock <= 0 %}text-danger{% elif item.is_low_stock %}text-warning{% else %}text-success{% endif %} mt-2">
-            {{ item.current_stock }}
+            {{ item.current_stock|inventory_quantity:item.unit }}
           </div>
-          <div class="text-muted small">{{ item.unit }} in stock</div>
+          <div class="text-muted small">{{ item.unit|inventory_unit }} in stock</div>
         </div>
 
         <ul class="list-group list-group-flush">
@@ -240,7 +240,7 @@
           </li>
           <li class="list-group-item d-flex justify-content-between py-2">
             <span class="text-muted small">Minimum Stock</span>
-            <span class="small fw-semibold">{{ item.minimum_stock }} {{ item.unit }}</span>
+            <span class="small fw-semibold">{{ item.minimum_stock|inventory_quantity:item.unit }} {{ item.unit|inventory_unit }}</span>
           </li>
           <li class="list-group-item d-flex justify-content-between py-2">
             <span class="text-muted small">Unit Cost</span>
@@ -303,7 +303,7 @@
                 </td>
                 <td class="text-end fw-bold
                   {% if m.movement_type == 'RESTOCK' %}text-success{% else %}text-danger{% endif %}">
-                  {% if m.movement_type == 'RESTOCK' %}+{% else %}-{% endif %}{{ m.quantity }} {{ item.unit }}
+                  {% if m.movement_type == 'RESTOCK' %}+{% else %}-{% endif %}{{ m.quantity|inventory_quantity:item.unit }} {{ item.unit|inventory_unit }}
                 </td>
                 <td>
                   {% if m.reference_order %}
@@ -353,7 +353,7 @@
           <div class="text-center">
             <div class="text-muted small">Current Stock</div>
             <div class="fw-bold fs-4 {% if item.is_low_stock %}text-warning{% else %}text-success{% endif %}">
-              {{ item.current_stock }} <small class="fs-6">{{ item.unit }}</small>
+              {{ item.current_stock|inventory_quantity:item.unit }} <small class="fs-6">{{ item.unit|inventory_unit }}</small>
             </div>
           </div>
           <span class="badge bg-{{ item.stock_status.0 }} px-3 py-2">{{ item.stock_status.1 }}</span>
@@ -384,7 +384,7 @@
               <div class="d-flex justify-content-between align-items-center">
                 <span class="text-muted small">Stock after restock:</span>
                 <span id="restockPreview" class="fw-bold fs-5 text-success">
-                  {{ item.current_stock }} {{ item.unit }}
+                  {{ item.current_stock|inventory_quantity:item.unit }} {{ item.unit|inventory_unit }}
                 </span>
               </div>
             </div>
@@ -406,11 +406,15 @@
 
   <script>
   const currentStock = {{ item.current_stock }};
-  const unit = '{{ item.unit }}';
+  const inputUnit = '{{ item.unit }}';
+  const displayUnit = '{{ item.unit|inventory_unit }}';
+  function displayQuantity(value) {
+    return inputUnit === 'ml' ? Math.round((value / 1000) * 10000) / 10000 : value;
+  }
   function updateRestockPreview() {
     const qty = parseFloat(document.getElementById('restockQty').value) || 0;
     const newStock = Math.round((currentStock + qty) * 10000) / 10000;
-    document.getElementById('restockPreview').textContent = newStock + ' ' + unit;
+    document.getElementById('restockPreview').textContent = displayQuantity(newStock) + ' ' + displayUnit;
   }
   </script>
 
@@ -440,7 +444,7 @@
           <div class="text-center">
             <div class="text-muted small">Available</div>
             <div class="fw-bold fs-4 {% if item.is_low_stock %}text-warning{% else %}text-success{% endif %}">
-              {{ item.current_stock }} <small class="fs-6">{{ item.unit }}</small>
+              {{ item.current_stock|inventory_quantity:item.unit }} <small class="fs-6">{{ item.unit|inventory_unit }}</small>
             </div>
           </div>
           <span class="badge bg-{{ item.stock_status.0 }} px-3 py-2">{{ item.stock_status.1 }}</span>
@@ -479,7 +483,7 @@
               <div class="d-flex justify-content-between align-items-center">
                 <span class="text-muted small">Stock after deduction:</span>
                 <span id="deductPreview" class="fw-bold fs-5 text-danger">
-                  {{ item.current_stock }} {{ item.unit }}
+                  {{ item.current_stock|inventory_quantity:item.unit }} {{ item.unit|inventory_unit }}
                 </span>
               </div>
             </div>
@@ -516,11 +520,15 @@
 
   <script>
   const currentStock = {{ item.current_stock }};
-  const unit = '{{ item.unit }}';
+  const inputUnit = '{{ item.unit }}';
+  const displayUnit = '{{ item.unit|inventory_unit }}';
+  function displayQuantity(value) {
+    return inputUnit === 'ml' ? Math.round((value / 1000) * 10000) / 10000 : value;
+  }
   function updateDeductPreview() {
     const qty = parseFloat(document.getElementById('deductQty').value) || 0;
     const remaining = Math.max(0, Math.round((currentStock - qty) * 10000) / 10000);
-    document.getElementById('deductPreview').textContent = remaining + ' ' + unit;
+    document.getElementById('deductPreview').textContent = displayQuantity(remaining) + ' ' + displayUnit;
     document.getElementById('overStockWarning').classList.toggle('d-none', qty <= currentStock);
   }
   </script>
@@ -560,14 +568,14 @@
           <div class="row g-2 text-center mb-3">
             <div class="col-6">
               <div class="p-2 rounded" style="background:#fff5f5">
-                <div class="fw-bold text-danger fs-5">{{ item.current_stock }}</div>
-                <div class="text-muted" style="font-size:.7rem">Current ({{ item.unit }})</div>
+                <div class="fw-bold text-danger fs-5">{{ item.current_stock|inventory_quantity:item.unit }}</div>
+                <div class="text-muted" style="font-size:.7rem">Current ({{ item.unit|inventory_unit }})</div>
               </div>
             </div>
             <div class="col-6">
               <div class="p-2 rounded" style="background:#f8f9fa">
-                <div class="fw-bold text-secondary fs-5">{{ item.minimum_stock }}</div>
-                <div class="text-muted" style="font-size:.7rem">Minimum ({{ item.unit }})</div>
+                <div class="fw-bold text-secondary fs-5">{{ item.minimum_stock|inventory_quantity:item.unit }}</div>
+                <div class="text-muted" style="font-size:.7rem">Minimum ({{ item.unit|inventory_unit }})</div>
               </div>
             </div>
           </div>
@@ -677,7 +685,7 @@
               <a href="{% url 'inventory_detail' m.item.id %}" class="fw-semibold text-decoration-none">
                 {{ m.item.name }}
               </a>
-              <small class="text-muted d-block">{{ m.item.unit }}</small>
+              <small class="text-muted d-block">{{ m.item.unit|inventory_unit }}</small>
             </td>
             <td>
               {% if m.movement_type == 'RESTOCK' %}
@@ -690,7 +698,7 @@
             </td>
             <td class="text-end fw-bold
               {% if m.movement_type == 'RESTOCK' %}text-success{% else %}text-danger{% endif %}">
-              {% if m.movement_type == 'RESTOCK' %}+{% else %}-{% endif %}{{ m.quantity }}
+              {% if m.movement_type == 'RESTOCK' %}+{% else %}-{% endif %}{{ m.quantity|inventory_quantity:m.item.unit }}
             </td>
             <td>
               {% if m.reference_order %}

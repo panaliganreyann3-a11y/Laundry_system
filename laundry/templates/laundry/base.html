@@ -123,13 +123,11 @@
   <div class="collapse w-100 px-3 pb-3" id="mobileMenu">
     {% if is_admin %}
     <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Dashboard</a>
-    <a href="{% url 'kanban_board' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Kanban</a>
     <a href="{% url 'customer_list' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Customers</a>
     <a href="{% url 'account_list' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Accounts</a>
     <a href="{% url 'reports' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Reports</a>
     <a href="{% url 'activity_log' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Activity Log</a>
     {% else %}
-    <a href="{% url 'delivery_tasks' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Dashboard</a>
     <a href="{% url 'delivery_tasks' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Pick-up/Delivery Task</a>
     <a href="{% url 'walkin_tasks' %}" class="btn btn-outline-light btn-sm w-100 mb-1">Walk-in Task</a>
     <a href="{% url 'add_order' %}" class="btn btn-outline-light btn-sm w-100 mb-1">New Order</a>
@@ -152,9 +150,6 @@
     <span class="sb-label">Overview</span>
     <a href="{% url 'admin_dashboard' %}" class="sb-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
       <i class="bi bi-speedometer2"></i> Dashboard
-    </a>
-    <a href="{% url 'kanban_board' %}" class="sb-link {% if request.resolver_match.url_name == 'kanban_board' %}active{% endif %}">
-      <i class="bi bi-kanban"></i> Kanban Board
     </a>
   </div>
   <div class="sb-section">
@@ -190,9 +185,6 @@
   {% else %}
   <div class="sb-section">
     <span class="sb-label">Menu</span>
-    <a href="{% url 'delivery_tasks' %}" class="sb-link">
-      <i class="bi bi-speedometer2"></i> Dashboard
-    </a>
     <a href="{% url 'delivery_tasks' %}" class="sb-link {% if request.resolver_match.url_name == 'delivery_tasks' %}active{% endif %}">
       <i class="bi bi-truck"></i> Pick-up/Delivery Task
     </a>

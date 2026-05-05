@@ -1,14 +1,14 @@
 {% extends 'laundry/base.html' %}
 {% load laundry_filters %}
-{% block title %}Edit Order #{{ order.id }}{% endblock %}
-{% block page_title %}Edit Order #{{ order.id }}{% endblock %}
+{% block title %}{% if read_only_order %}View{% else %}Edit{% endif %} Order #{{ order.id }}{% endblock %}
+{% block page_title %}{% if read_only_order %}View{% else %}Edit{% endif %} Order #{{ order.id }}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-md-6">
     <div class="card shadow">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <strong>✏️ Edit Order #{{ order.id }} — {{ order.customer.name }}</strong>
+        <strong>{% if read_only_order %}View{% else %}Edit{% endif %} Order #{{ order.id }} - {{ order.customer.name }}</strong>
         {% if is_admin %}
         <button class="btn btn-sm btn-outline-danger"
                 data-bs-toggle="modal" data-bs-target="#deleteModal">
@@ -19,6 +19,13 @@
       <div class="card-body">
         <form method="post" action="{% url 'edit_order' order.id %}">
           {% csrf_token %}
+          {% if read_only_order %}
+          <div class="alert alert-info py-2">
+            Pending pickup request details are view-only. Accept or decline the request from here.
+          </div>
+          {% endif %}
+
+          <fieldset{% if read_only_order %} disabled{% endif %}>
 
           <div class="mb-3">
             <label class="form-label fw-bold">Customer</label>
@@ -190,7 +197,23 @@
           </div>
           {% endif %}
 
+          </fieldset>
+
           <div class="d-flex gap-2">
+            {% if read_only_order %}
+            <button type="submit" form="acceptPickupOnDetail" class="btn btn-success flex-fill confirm-btn"
+                    data-msg="Accept pickup request #{{ order.id }} and assign it to yourself?">
+              Accept
+            </button>
+            <button type="button" class="btn btn-outline-danger flex-fill"
+                    data-bs-toggle="modal" data-bs-target="#declinePickupOnDetail">
+              Decline Request
+            </button>
+            <a href="{% if is_admin %}{% url 'admin_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}"
+               class="btn btn-outline-secondary flex-fill">
+              Back
+            </a>
+            {% else %}
             <button type="submit" class="btn btn-primary flex-fill">
               💾 Save Changes
             </button>
@@ -198,12 +221,42 @@
                class="btn btn-outline-secondary flex-fill">
               Cancel
             </a>
+            {% endif %}
           </div>
         </form>
       </div>
     </div>
   </div>
 </div>
+
+{% if read_only_order %}
+<form id="acceptPickupOnDetail" method="post" action="{% url 'accept_pickup_request' order.id %}">
+  {% csrf_token %}
+</form>
+
+<div class="modal fade" id="declinePickupOnDetail" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{% url 'decline_pickup_request' order.id %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title">Decline Pickup #{{ order.id }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <label class="form-label fw-semibold">Comment <span class="text-muted fw-normal">(optional)</span></label>
+          <textarea name="decline_reason" class="form-control" rows="3"
+                    placeholder="Add a note for this declined request"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">Decline Request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 {% for payment in order.payments.all %}
   {% if payment.payment_method == 'GCASH' and payment.status == 'PENDING' %}

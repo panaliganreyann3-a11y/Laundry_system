@@ -58,7 +58,7 @@
         </form>
       </div>
       <div class="card-footer small text-muted">
-        Current estimate: {{ config.price_per_kg|default:30 }} per kg. Final price can change after staff weighs the laundry.
+        Current estimate: {{ config.price_per_kg|default:30 }} per kg{% if config.delivery_fee %} plus {{ config.delivery_fee|peso }} delivery fee{% endif %}. Final price can change after staff weighs the laundry.
       </div>
     </div>
   </div>

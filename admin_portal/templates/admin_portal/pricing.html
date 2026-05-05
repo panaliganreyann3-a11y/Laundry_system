@@ -44,6 +44,17 @@
             <div class="form-text">Extra flat fee added for priority orders.</div>
           </div>
 
+          <div class="mb-3">
+            <label class="form-label fw-bold">Delivery Fee (PHP)</label>
+            <input
+              type="number" step="0.01" min="0" name="delivery_fee"
+              class="form-control"
+              value="{{ config.delivery_fee|default:'0.00' }}"
+              required
+            >
+            <div class="form-text">Flat fee charged on customer pickup/delivery requests.</div>
+          </div>
+
           <hr>
 
           <div class="mb-3">

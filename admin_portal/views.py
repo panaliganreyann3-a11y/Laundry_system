@@ -155,15 +155,17 @@ def pricing_settings(request):
         try:
             ppk = float(request.POST['price_per_kg'])
             rush = float(request.POST['rush_surcharge'])
+            delivery_fee = float(request.POST.get('delivery_fee') or 0)
         except (ValueError, KeyError):
             messages.error(request, "Invalid values.")
             return redirect('pricing_settings')
-        if ppk <= 0 or rush < 0:
-            messages.error(request, "Price per kg must be positive.")
+        if ppk <= 0 or rush < 0 or delivery_fee < 0:
+            messages.error(request, "Price per kg must be positive, and fees cannot be negative.")
             return redirect('pricing_settings')
         if config:
             config.price_per_kg = ppk
             config.rush_surcharge = rush
+            config.delivery_fee = delivery_fee
             config.gcash_number = request.POST.get('gcash_number', '').strip() or None
             if request.FILES.get('gcash_qr'):
                 config.gcash_qr = request.FILES['gcash_qr']
@@ -172,6 +174,7 @@ def pricing_settings(request):
             config = PricingConfig.objects.create(
                 price_per_kg=ppk,
                 rush_surcharge=rush,
+                delivery_fee=delivery_fee,
                 gcash_number=request.POST.get('gcash_number', '').strip() or None,
                 gcash_qr=request.FILES.get('gcash_qr'),
             )
@@ -180,7 +183,7 @@ def pricing_settings(request):
             request.user,
             'PRICING',
             'UPDATE',
-            f"Updated pricing to {ppk}/kg with rush surcharge {rush}.",
+            f"Updated pricing to {ppk}/kg with rush surcharge {rush} and delivery fee {delivery_fee}.",
             config,
         )
         return redirect('pricing_settings')
