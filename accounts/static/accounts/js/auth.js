@@ -10,36 +10,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (alert.querySelector('.bi-droplet-fill')) return;
     const icon = document.createElement('i');
     icon.className = 'bi bi-droplet-fill me-2';
-    icon.style.color = 'var(--water)';
+    icon.style.color = 'var(--aqua)';
     alert.prepend(icon);
   });
 });
 
 function initAuthBubbles() {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const field = document.createElement('div');
+  field.className = 'bubble-field';
 
-  const existingLayer = document.querySelector('.auth-bubbles');
-  const field = existingLayer || document.createElement('div');
-  field.className = existingLayer ? 'auth-bubbles' : 'bubble-field';
-
-  for (let i = 0; i < 16; i += 1) {
+  for (let i = 0; i < 14; i += 1) {
     const bubble = document.createElement('span');
-    const size = 20 + Math.random() * 48;
-    bubble.className = existingLayer ? 'auth-bubble' : '';
-    bubble.style.width = `${size}px`;
-    bubble.style.height = `${size}px`;
-    bubble.style.left = `${Math.random() * 100}%`;
-    bubble.style.animationDuration = `${12 + Math.random() * 12}s`;
-    bubble.style.animationDelay = `${Math.random() * -18}s`;
-    bubble.style.setProperty('--size', `${size}px`);
-    bubble.style.setProperty('--left', bubble.style.left);
-    bubble.style.setProperty('--duration', bubble.style.animationDuration);
-    bubble.style.setProperty('--delay', bubble.style.animationDelay);
-    bubble.style.setProperty('--drift', `${-45 + Math.random() * 90}px`);
+    bubble.style.setProperty('--size', `${20 + Math.random() * 48}px`);
+    bubble.style.setProperty('--left', `${Math.random() * 100}%`);
+    bubble.style.setProperty('--duration', `${18 + Math.random() * 16}s`);
+    bubble.style.setProperty('--delay', `${Math.random() * -24}s`);
+    bubble.style.setProperty('--drift', `${-30 + Math.random() * 60}px`);
     field.appendChild(bubble);
   }
 
-  if (!existingLayer) document.body.prepend(field);
+  document.body.prepend(field);
 }
 
 function initContactValidation() {
@@ -65,8 +56,7 @@ function initContactValidation() {
 
 function initPasswordToggles() {
   document.querySelectorAll('.password-toggle').forEach((button) => {
-    const targetId = button.dataset.target || button.dataset.passwordToggle;
-    const input = document.getElementById(targetId);
+    const input = document.getElementById(button.dataset.target);
     const icon = button.querySelector('i');
     if (!input || !icon) return;
 
@@ -113,11 +103,12 @@ function initPasswordStrength() {
     if (hasSpecial(value)) score += 1;
     if (commonPasswords.has(value.toLowerCase())) score = 0;
 
-    const level = score >= 4
-      ? { key: 'strong', text: 'Strong' }
-      : score >= 2
-        ? { key: 'fair', text: 'Fair' }
-        : { key: 'weak', text: 'Weak' };
+    const levels = [
+      { key: 'weak', text: 'Weak' },
+      { key: 'fair', text: 'Fair' },
+      { key: 'strong', text: 'Strong' },
+    ];
+    const level = score >= 4 ? levels[2] : score >= 2 ? levels[1] : levels[0];
 
     meter.classList.remove('d-none');
     meter.dataset.strength = level.key;
@@ -127,8 +118,7 @@ function initPasswordStrength() {
 
   password.addEventListener('input', updateMeter);
   form.addEventListener('submit', (event) => {
-    const value = password.value;
-    if (value.length >= 8 && hasLower(value) && hasUpper(value) && hasDigit(value) && hasSpecial(value)) return;
+    if (password.value.length >= 8 && hasLower(password.value) && hasUpper(password.value) && hasDigit(password.value) && hasSpecial(password.value)) return;
     event.preventDefault();
     error?.classList.remove('d-none');
     password.focus();
