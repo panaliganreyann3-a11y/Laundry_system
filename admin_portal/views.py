@@ -12,6 +12,7 @@ from django.db.models.functions import TruncDate
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from laundry.models import (
     Customer,
@@ -34,6 +35,13 @@ from laundry.views import (
     orders_created_on,
     staff_portal_required,
 )
+
+
+def _redirect_back(request, fallback='account_list'):
+    next_url = request.POST.get('next') or request.META.get('HTTP_REFERER', '')
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect(fallback)
 
 
 @login_required
@@ -514,10 +522,14 @@ def update_account_photo(request, user_id):
         profile.avatar.delete(save=False)
         profile.avatar = None
     elif request.FILES.get('avatar'):
-        profile.avatar = request.FILES['avatar']
+        avatar = request.FILES['avatar']
+        if not avatar.content_type.startswith('image/'):
+            messages.error(request, "Choose a valid image file.")
+            return _redirect_back(request)
+        profile.avatar = avatar
     else:
         messages.error(request, "Choose an image before saving.")
-        return redirect('account_list')
+        return _redirect_back(request)
     profile.save()
     messages.success(request, f"Updated photo for {user.username}.")
     log_activity(
@@ -527,7 +539,7 @@ def update_account_photo(request, user_id):
         f"Updated account photo for '{user.username}'.",
         user,
     )
-    return redirect('account_list')
+    return _redirect_back(request)
 
 
 @login_required
@@ -537,9 +549,13 @@ def reset_password(request, user_id):
     if request.method == 'POST':
         user = get_object_or_404(User, id=user_id)
         pw = request.POST.get('new_password', '')
+        confirm_pw = request.POST.get('confirm_password', '')
         if len(pw) < 8:
             messages.error(request, "Password must be at least 8 characters.")
-            return redirect('account_list')
+            return _redirect_back(request)
+        if pw != confirm_pw:
+            messages.error(request, "Password confirmation does not match.")
+            return _redirect_back(request)
         user.set_password(pw)
         user.save()
         log_activity(
@@ -550,7 +566,7 @@ def reset_password(request, user_id):
             user,
         )
         messages.success(request, f"Password for '{user.username}' reset.")
-    return redirect('account_list')
+    return _redirect_back(request)
 
 
 @login_required

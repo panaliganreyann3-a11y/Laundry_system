@@ -1,0 +1,58 @@
+<div class="modal fade" id="resetModal{{ member.id }}" tabindex="-1" aria-labelledby="resetModalLabel{{ member.id }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="resetModalLabel{{ member.id }}">Reset Password - {{ member.username }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'reset_password' member.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="modal-body">
+          <label class="form-label">New Password</label>
+          <input type="password" name="new_password" class="form-control" required minlength="8" autocomplete="new-password">
+          <label class="form-label mt-3">Confirm Password</label>
+          <input type="password" name="confirm_password" class="form-control" required minlength="8" autocomplete="new-password">
+          <div class="form-text">Minimum 8 characters.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">Reset Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="photoModal{{ member.id }}" tabindex="-1" aria-labelledby="photoModalLabel{{ member.id }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="photoModalLabel{{ member.id }}">Update Photo - {{ member.username }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'update_account_photo' member.id %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="modal-body">
+          <label class="form-label">Photo</label>
+          <input type="file" name="avatar" class="form-control" accept="image/*">
+          <div class="form-text">Choose a JPG, PNG, GIF, or WebP image.</div>
+          {% if member.profile.avatar %}
+          <div class="mt-3">
+            <img src="{{ member.profile.avatar.url }}" alt="{{ member.username }}" class="rounded-circle border" style="width:64px;height:64px;object-fit:cover">
+          </div>
+          <div class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" name="remove_avatar" value="1" id="removeAvatar{{ member.id }}">
+            <label class="form-check-label" for="removeAvatar{{ member.id }}">Remove current photo</label>
+          </div>
+          {% endif %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Photo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
