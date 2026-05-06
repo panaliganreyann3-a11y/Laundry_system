@@ -13,35 +13,37 @@
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
-            <input type="text" name="name" class="form-control" placeholder="e.g. Maria Santos" required>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Maria Santos" value="{{ form_data.name|default:'' }}" required>
           </div>
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Phone Number <span class="text-danger">*</span></label>
             <div class="input-group">
               <span class="input-group-text"><i class="bi bi-telephone"></i></span>
-              <input type="text" name="contact" class="form-control" placeholder="09XXXXXXXXX" required>
+              <input type="text" name="contact" class="form-control" placeholder="09XXXXXXXXX" value="{{ form_data.contact|default:'' }}" inputmode="numeric" maxlength="11" pattern="\d{11}" required>
+              <div class="invalid-feedback">Contact number must be exactly 11 digits and start with 09.</div>
             </div>
+            <div class="form-text">The number must start with 09.</div>
           </div>
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Email <span class="text-muted fw-normal">(optional)</span></label>
             <div class="input-group">
               <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-              <input type="email" name="email" class="form-control" placeholder="customer@email.com">
+              <input type="email" name="email" class="form-control" placeholder="customer@email.com" value="{{ form_data.email|default:'' }}">
             </div>
           </div>
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Address <span class="text-muted fw-normal">(optional)</span></label>
             <textarea name="address" class="form-control" rows="2"
-                      placeholder="Street, Barangay, City..."></textarea>
+                      placeholder="Street, Barangay, City...">{{ form_data.address|default:'' }}</textarea>
           </div>
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Notes / Preferences <span class="text-muted fw-normal">(optional)</span></label>
             <textarea name="notes" class="form-control" rows="2"
-                      placeholder="e.g. Allergic to fabric softener, separate whites..."></textarea>
+                      placeholder="e.g. Allergic to fabric softener, separate whites...">{{ form_data.notes|default:'' }}</textarea>
           </div>
 
           <div class="mb-4">

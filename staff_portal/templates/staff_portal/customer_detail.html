@@ -20,7 +20,11 @@
         {% if customer.is_walk_in %}
         <span class="badge bg-secondary mb-2">Walk-in</span>
         {% else %}
+        {% if customer.status == 'NEW' %}
+        <span class="badge bg-info mb-2">New Customer</span>
+        {% else %}
         <span class="badge bg-success mb-2">Regular Customer</span>
+        {% endif %}
         {% endif %}
       </div>
 

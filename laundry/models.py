@@ -51,15 +51,21 @@ class UserProfile(models.Model):
 
 
 class Customer(models.Model):
+    STATUS_CHOICES = [
+        ('NEW', 'New'),
+        ('REGULAR', 'Regular'),
+    ]
+
     user = models.OneToOneField(
         User, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='customer_profile'
     )
     name = models.CharField(max_length=100)
-    contact = models.CharField(max_length=20)
+    contact = models.CharField(max_length=11)
     email = models.EmailField(blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default='NEW')
     is_walk_in = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now)
 
