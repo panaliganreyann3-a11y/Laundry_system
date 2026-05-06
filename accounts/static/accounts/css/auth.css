@@ -1,3 +1,180 @@
-.auth-page { min-height: 100vh; }
-.auth-card { width: 100%; max-width: 400px; }
-.auth-icon { font-size: 2.5rem; }
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Nunito:wght@700;800&display=swap');
+
+:root {
+  --linen: #F8F5F0;
+  --cloud: #E8EDF2;
+  --water: #4A9EC4;
+  --foam: #2DBFAD;
+  --lavender: #9B8EC4;
+  --zest: #F5A623;
+  --slate: #2C3E50;
+}
+
+* { box-sizing: border-box; }
+
+body.auth-body {
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+  color: var(--slate);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(45,191,173,.26), transparent 30%),
+    radial-gradient(circle at 78% 12%, rgba(155,142,196,.28), transparent 34%),
+    linear-gradient(135deg, var(--linen), var(--cloud));
+}
+
+.auth-bubbles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.auth-bubble {
+  position: absolute;
+  bottom: -80px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.5);
+  border: 1px solid rgba(255,255,255,.65);
+  filter: blur(.2px);
+  animation: float-bubble linear infinite;
+}
+
+@keyframes float-bubble {
+  from { transform: translate3d(0,0,0) scale(.9); opacity: 0; }
+  15% { opacity: .8; }
+  to { transform: translate3d(var(--drift), -110vh, 0) scale(1.2); opacity: 0; }
+}
+
+.auth-shell {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+}
+
+.auth-card {
+  width: min(100%, 430px);
+  border: 1px solid rgba(255,255,255,.74);
+  border-radius: 24px;
+  padding: 34px;
+  background:
+    linear-gradient(rgba(255,255,255,.88), rgba(255,255,255,.88)),
+    repeating-linear-gradient(45deg, rgba(44,62,80,.025) 0 1px, transparent 1px 6px);
+  box-shadow: 0 24px 70px rgba(44,62,80,.16);
+  backdrop-filter: blur(18px);
+}
+
+.auth-card > * {
+  animation: clean-in .55s ease both;
+}
+
+.auth-card > *:nth-child(2) { animation-delay: .06s; }
+.auth-card > *:nth-child(3) { animation-delay: .12s; }
+.auth-card > *:nth-child(4) { animation-delay: .18s; }
+
+@keyframes clean-in {
+  from { opacity: 0; transform: translateY(16px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.auth-mark {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  color: #fff;
+  font-size: 1.8rem;
+  background: linear-gradient(135deg, var(--water), var(--foam));
+  box-shadow: 0 14px 32px rgba(74,158,196,.26);
+}
+
+.auth-title {
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: .04em;
+  color: var(--slate);
+}
+
+.auth-subtitle {
+  color: rgba(44,62,80,.68);
+}
+
+.form-label {
+  color: var(--slate);
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.auth-card .form-control {
+  min-height: 48px;
+  border-radius: 16px;
+  border: 1px solid #d8e0e8;
+  background: rgba(255,255,255,.82);
+}
+
+.auth-card .form-control:focus {
+  border-color: var(--water);
+  box-shadow: 0 0 0 .22rem rgba(74,158,196,.16);
+}
+
+.password-wrap {
+  position: relative;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: rgba(44,62,80,.65);
+}
+
+.btn-auth {
+  min-height: 48px;
+  border: 0;
+  border-radius: 16px;
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: .03em;
+  background: linear-gradient(135deg, var(--zest), #f08b2a);
+  box-shadow: 0 14px 30px rgba(245,166,35,.28);
+}
+
+.btn-auth:hover {
+  color: #fff;
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: 0 18px 38px rgba(245,166,35,.34);
+}
+
+.auth-link {
+  color: var(--water);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-link:hover {
+  color: var(--foam);
+}
+
+.auth-wave {
+  height: 18px;
+  margin: 22px -34px;
+  background:
+    radial-gradient(24px 18px at 24px 0, transparent 20px, rgba(74,158,196,.14) 21px, rgba(74,158,196,.14) 26px, transparent 27px)
+    repeat-x;
+  background-size: 48px 18px;
+}
+
+.alert {
+  border: 0;
+  border-radius: 16px;
+}
