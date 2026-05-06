@@ -83,7 +83,7 @@ TIME_ZONE = 'Asia/Manila'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 
 LOGIN_URL = '/staff-login/'
 LOGIN_REDIRECT_URL = '/staff-dashboard/'
