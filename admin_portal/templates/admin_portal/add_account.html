@@ -50,7 +50,9 @@
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-bold">Contact Number</label>
-                <input type="text" name="contact" id="contactInput" class="form-control">
+                <input type="text" name="contact" id="contactInput" class="form-control" inputmode="numeric" maxlength="11" pattern="\d{11}">
+                <div class="form-text">The number must start with 09.</div>
+                <div class="invalid-feedback">Contact number must be exactly 11 digits and start with 09.</div>
               </div>
               <div class="col-12">
                 <label class="form-label fw-bold">Address</label>

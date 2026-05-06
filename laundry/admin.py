@@ -18,7 +18,7 @@ class UserProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ['name', 'contact', 'created_at']
+    list_display = ['name', 'contact', 'status', 'created_at']
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):

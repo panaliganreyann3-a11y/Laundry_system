@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from laundry.models import Customer, Order, Payment, PricingConfig
+from laundry.validators import is_allowed_email, is_strong_customer_password, is_valid_contact
 from laundry.views import (
     customer_required,
     generate_qr_for_order,
@@ -30,26 +31,36 @@ def customer_register(request):
         address = request.POST.get('address', '').strip()
         password1 = request.POST.get('password1', '')
         password2 = request.POST.get('password2', '')
+        form_data = {'name': name, 'contact': contact, 'email': email, 'address': address}
 
         if not all([name, contact, email, address, password1, password2]):
             messages.error(request, "Please complete all required fields.")
-            return render(request, 'customers/customer_register.html')
+            return render(request, 'customers/customer_register.html', {'form_data': form_data})
+        if not is_valid_contact(contact):
+            messages.error(request, "Contact number must be exactly 11 digits and start with 09.")
+            return render(request, 'customers/customer_register.html', {'form_data': form_data})
+        if not is_allowed_email(email):
+            messages.error(request, "Enter a valid non-disposable email address.")
+            return render(request, 'customers/customer_register.html', {'form_data': form_data})
         if password1 != password2:
             messages.error(request, "Passwords do not match.")
-            return render(request, 'customers/customer_register.html')
+            return render(request, 'customers/customer_register.html', {'form_data': form_data})
         if len(password1) < 8:
             messages.error(request, "Password must be at least 8 characters.")
-            return render(request, 'customers/customer_register.html')
+            return render(request, 'customers/customer_register.html', {'form_data': form_data})
+        if not is_strong_customer_password(password1):
+            messages.error(request, "Password must include letters, numbers and special characters!")
+            return render(request, 'customers/customer_register.html', {'form_data': form_data})
         if User.objects.filter(username__iexact=email).exists():
             messages.error(request, "An account with this email already exists.")
-            return render(request, 'customers/customer_register.html')
+            return render(request, 'customers/customer_register.html', {'form_data': form_data})
 
         existing_customer = Customer.objects.filter(
             Q(email__iexact=email) | Q(contact=contact)
         ).first()
         if existing_customer and existing_customer.user_id:
             messages.error(request, "A customer account already exists for this email or contact number.")
-            return render(request, 'customers/customer_register.html')
+            return render(request, 'customers/customer_register.html', {'form_data': form_data})
 
         with transaction.atomic():
             user = User.objects.create_user(
@@ -233,6 +244,12 @@ def customer_profile(request):
 
         if not all([name, contact, email, address]):
             messages.error(request, "Name, contact, email, and address are required.")
+            return redirect('customer_profile')
+        if not is_valid_contact(contact):
+            messages.error(request, "Contact number must be exactly 11 digits and start with 09.")
+            return redirect('customer_profile')
+        if not is_allowed_email(email):
+            messages.error(request, "Enter a valid non-disposable email address.")
             return redirect('customer_profile')
 
         email_taken = User.objects.filter(username__iexact=email).exclude(id=request.user.id).exists()

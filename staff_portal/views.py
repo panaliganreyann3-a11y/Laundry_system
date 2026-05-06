@@ -17,6 +17,7 @@ from laundry.models import (
     PricingConfig,
     StockMovement,
 )
+from laundry.validators import is_valid_contact
 from laundry.views import (
     ITEMS_PER_PAGE,
     advance_order_status,
@@ -227,6 +228,12 @@ def add_customer(request):
         if not name or not contact:
             messages.error(request, "Name and contact are required.")
             return render(request, 'staff_portal/add_customer.html', {'is_admin': is_admin(request.user)})
+        if not is_valid_contact(contact):
+            messages.error(request, "Contact number must be exactly 11 digits and start with 09.")
+            return render(request, 'staff_portal/add_customer.html', {
+                'is_admin': is_admin(request.user),
+                'form_data': request.POST,
+            })
         customer = Customer.objects.create(
             name=name,
             contact=contact,
@@ -259,6 +266,15 @@ def edit_customer(request, customer_id):
         customer.address = request.POST.get('address', '').strip() or None
         customer.notes = request.POST.get('notes', '').strip() or None
         customer.is_walk_in = 'is_walk_in' in request.POST
+        customer.status = request.POST.get('status', customer.status)
+        if customer.status not in dict(Customer.STATUS_CHOICES):
+            customer.status = 'NEW'
+        if not is_valid_contact(customer.contact):
+            messages.error(request, "Contact number must be exactly 11 digits and start with 09.")
+            return render(request, 'staff_portal/edit_customer.html', {
+                'customer': customer,
+                'is_admin': is_admin(request.user),
+            })
         customer.save()
         log_activity(
             request.user,
