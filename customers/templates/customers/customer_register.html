@@ -1,10 +1,13 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Create Account - Smart Laundry</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="{% static 'accounts/css/auth.css' %}" rel="stylesheet">
 </head>
 <body class="bg-light">
 <div class="container py-5">
@@ -12,6 +15,7 @@
     <div class="col-md-7 col-lg-6">
       <div class="card shadow border-0">
         <div class="card-body p-4">
+          <div class="brand-mark"><i class="bi bi-person-plus"></i></div>
           <h4 class="fw-bold mb-1">Create Customer Account</h4>
           <p class="text-muted mb-4">Request pickup and delivery after signing in.</p>
           {% if messages %}
@@ -19,34 +23,49 @@
             <div class="alert alert-{{ message.tags }}">{{ message }}</div>
             {% endfor %}
           {% endif %}
-          <form method="post">
+          <form method="post" id="customerRegisterForm">
             {% csrf_token %}
             <div class="mb-3">
               <label class="form-label">Full Name</label>
-              <input type="text" name="name" class="form-control" required>
+              <input type="text" name="name" class="form-control" value="{{ form_data.name|default:'' }}" required>
             </div>
             <div class="mb-3">
               <label class="form-label">Contact Number</label>
-              <input type="text" name="contact" class="form-control" required>
+              <input type="text" name="contact" class="form-control" value="{{ form_data.contact|default:'' }}" inputmode="numeric" maxlength="11" pattern="\d{11}" required>
+              <div class="form-text">The number must start with 09.</div>
+              <div class="invalid-feedback">Contact number must be exactly 11 digits and start with 09.</div>
             </div>
             <div class="mb-3">
               <label class="form-label">Email</label>
-              <input type="email" name="email" class="form-control" required>
+              <input type="email" name="email" class="form-control" value="{{ form_data.email|default:'' }}" required>
             </div>
             <div class="mb-3">
               <label class="form-label">Address</label>
-              <textarea name="address" class="form-control" rows="2" required></textarea>
+              <textarea name="address" class="form-control" rows="2" required>{{ form_data.address|default:'' }}</textarea>
             </div>
             <div class="row g-2">
               <div class="col-md-6 mb-3">
                 <label class="form-label">Password</label>
-                <input type="password" name="password1" class="form-control" minlength="8" required>
+                <div class="password-field">
+                  <input type="password" name="password1" id="password1" class="form-control" minlength="8" required>
+                  <button type="button" class="password-toggle" data-target="password1" aria-label="Show password">
+                    <i class="bi bi-eye-slash"></i>
+                  </button>
+                </div>
+                <div id="passwordStrength" class="password-meter d-none" aria-live="polite">
+                  <div class="password-meter-track">
+                    <div class="password-meter-fill"></div>
+                  </div>
+                  <span class="password-meter-label">Weak</span>
+                </div>
               </div>
               <div class="col-md-6 mb-3">
                 <label class="form-label">Confirm Password</label>
-                <input type="password" name="password2" class="form-control" minlength="8" required>
+                <input type="password" name="password2" id="password2" class="form-control" minlength="8" required>
+                <div id="passwordMatchError" class="text-danger small mt-1 d-none">Passwords must match.</div>
               </div>
             </div>
+            <div id="passwordRuleError" class="text-danger small mb-3 d-none">Password must include letters, numbers and special characters!</div>
             <button class="btn btn-primary w-100">Create Account</button>
           </form>
           <p class="text-center small text-muted mt-3 mb-0">
@@ -57,5 +76,6 @@
     </div>
   </div>
 </div>
+<script src="{% static 'accounts/js/auth.js' %}"></script>
 </body>
 </html>

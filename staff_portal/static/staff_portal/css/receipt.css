@@ -1,3 +1,14 @@
+body { background: #FAFBFC; color: #1C2B3A; }
+.receipt-card,.card {
+  border-radius: 16px;
+  border: 1px solid rgba(26,95,138,.12);
+  box-shadow: 0 8px 32px rgba(26,95,138,.10);
+}
+.receipt-total,.total-row {
+  color: #1A5F8A;
+  font-weight: 800;
+}
+hr { border: 0; height: 1px; opacity: 1; background: linear-gradient(90deg,#1A5F8A,#3ECFB2); }
 @media print {
   #sidebar, .top-bar, .d-flex.gap-2 { display: none !important; }
   #main { padding: 0 !important; }
