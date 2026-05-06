@@ -10,3 +10,4 @@ staticfiles/
 .idea/
 .vscode/
 db.sqlite3
+_archived_duplicate_project/

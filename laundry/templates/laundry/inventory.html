@@ -112,12 +112,7 @@
         </div>
         <div class="col-md-3 d-flex gap-2">
           <button class="btn btn-primary btn-sm flex-fill">Filter</button>
-          <a href="{% url 'inventory_list' %}" class="btn btn-outline-secondary btn-sm flex-fill">Clear</a>
-          {% if request.user.is_staff %}
-          <a href="{% url 'add_inventory_item' %}" class="btn btn-success btn-sm" title="Add Item">
-            <i class="bi bi-plus-lg"></i>
-          </a>
-          {% endif %}
+          <a href="{% url 'inventory_list' %}" class="btn btn-outline-secondary btn-sm flex-fill">Clear</a> 
         </div>
       </div>
     </div>

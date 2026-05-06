@@ -42,7 +42,7 @@ body::before {
   opacity: .03;
   background-image: radial-gradient(#0D2137 .7px, transparent .7px);
   background-size: 7px 7px;
-  z-index: 9999;
+  z-index: 0;
 }
 h1,h2,h3,h4,h5,h6,.navbar-brand,.sb-brand span { font-family: 'Raleway', system-ui, sans-serif; letter-spacing: 0; }
 a { color: var(--ocean); }
@@ -113,7 +113,7 @@ a:hover { color: var(--aqua); }
 .sb-user { color: rgba(255,255,255,.55); font-size: .72rem; }
 .sb-username { color: #fff; font-weight: 700; font-size: .87rem; }
 
-#main { flex: 1; min-width: 0; display: flex; flex-direction: column; margin-left: 244px; position: relative; z-index: 1; }
+#main { flex: 1; min-width: 0; display: flex; flex-direction: column; margin-left: 244px; position: relative; z-index: auto; }
 .top-bar {
   background: rgba(250,251,252,.82);
   backdrop-filter: blur(12px);

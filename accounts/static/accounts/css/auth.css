@@ -146,3 +146,202 @@ a { color:var(--ocean); font-weight:700; }
 }
 @keyframes bubbleDrift { to { transform:translate3d(var(--drift),-118vh,0); } }
 .container { position:relative; z-index:1; }
+
+.auth-page {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:1.5rem;
+  overflow:hidden;
+}
+
+.auth-page > .auth-card {
+  padding:2.5rem 2rem;
+  position:relative;
+  z-index:2;
+}
+
+.auth-page.admin-theme {
+  color:#fff;
+  background:
+    radial-gradient(circle at 14% 18%, rgba(62,207,178,.34), transparent 28%),
+    radial-gradient(circle at 84% 76%, rgba(201,148,58,.30), transparent 30%),
+    linear-gradient(135deg,#0D2137,#16395A 58%,#1A5F8A);
+}
+
+.floating-shape {
+  position:fixed;
+  border-radius:999px;
+  pointer-events:none;
+  z-index:0;
+  opacity:.74;
+  border:1px solid rgba(255,255,255,.42);
+  background:radial-gradient(circle at 30% 25%, rgba(255,255,255,.86), rgba(62,207,178,.34) 42%, rgba(43,170,204,.14) 72%);
+  box-shadow:0 22px 46px rgba(26,95,138,.18), inset 0 0 18px rgba(255,255,255,.45);
+  animation:visibleBubble 9s ease-in-out infinite;
+}
+
+.shape-1 {
+  width:150px;
+  height:150px;
+  left:7%;
+  top:12%;
+}
+
+.shape-2 {
+  width:112px;
+  height:112px;
+  right:9%;
+  bottom:13%;
+  animation-duration:11s;
+  animation-delay:-2s;
+}
+
+.shape-3 {
+  width:78px;
+  height:78px;
+  left:18%;
+  bottom:16%;
+  animation-duration:8s;
+  animation-delay:-4s;
+}
+
+.admin-theme .floating-shape {
+  opacity:.86;
+  border-color:rgba(255,255,255,.34);
+  background:radial-gradient(circle at 30% 25%, rgba(255,255,255,.76), rgba(62,207,178,.36) 40%, rgba(201,148,58,.28) 74%);
+  box-shadow:0 24px 58px rgba(0,0,0,.24), inset 0 0 20px rgba(255,255,255,.4);
+}
+
+@keyframes visibleBubble {
+  0%,100% { transform:translate3d(0,0,0) scale(1); }
+  45% { transform:translate3d(16px,-24px,0) scale(1.06); }
+  72% { transform:translate3d(-10px,12px,0) scale(.98); }
+}
+
+.auth-header {
+  text-align:center;
+  margin-bottom:2rem;
+}
+
+.logo-icon {
+  width:68px;
+  height:68px;
+  margin:0 auto 1rem;
+  display:grid;
+  place-items:center;
+  border-radius:22px;
+  color:#fff;
+  font-size:1.9rem;
+  background:linear-gradient(135deg,var(--ocean),var(--mint));
+  box-shadow:0 14px 32px rgba(26,95,138,.22);
+}
+
+.subtitle {
+  color:var(--slate);
+  margin:0;
+}
+
+.auth-form {
+  display:flex;
+  flex-direction:column;
+  gap:1.1rem;
+}
+
+.form-group label {
+  color:var(--slate);
+  font-size:.73rem;
+  font-weight:700;
+  letter-spacing:.9px;
+  text-transform:uppercase;
+  margin-bottom:.45rem;
+}
+
+.input-wrapper {
+  position:relative;
+}
+
+.input-icon {
+  position:absolute;
+  left:1rem;
+  top:50%;
+  transform:translateY(-50%);
+  color:var(--slate);
+}
+
+.form-input {
+  width:100%;
+  min-height:48px;
+  border:1px solid rgba(26,95,138,.24);
+  border-radius:14px;
+  padding:.75rem 1rem;
+  background:rgba(255,255,255,.78);
+  color:var(--charcoal);
+  outline:0;
+}
+
+.form-input.with-icon {
+  padding-left:2.85rem;
+  padding-right:2.85rem;
+}
+
+.form-input:focus {
+  border-color:var(--aqua);
+  box-shadow:0 0 0 .22rem rgba(43,170,204,.16);
+}
+
+.btn-submit {
+  min-height:48px;
+  border:0;
+  border-radius:999px;
+  color:#fff;
+  font-weight:800;
+  letter-spacing:.02em;
+  background:linear-gradient(135deg,var(--brass),#b48231);
+  box-shadow:0 12px 26px rgba(201,148,58,.25);
+}
+
+.btn-submit.admin-btn {
+  background:linear-gradient(135deg,#b94a48,#C9943A);
+}
+
+.btn-spinner {
+  display:inline-block;
+  width:18px;
+  height:18px;
+  margin-right:.5rem;
+  border:2px solid rgba(255,255,255,.35);
+  border-top-color:#fff;
+  border-radius:50%;
+  vertical-align:middle;
+  animation:spin .8s linear infinite;
+}
+
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.divider {
+  display:flex;
+  align-items:center;
+  margin:1.5rem 0;
+  color:var(--slate);
+  font-size:.85rem;
+}
+
+.divider::before,
+.divider::after {
+  content:"";
+  flex:1;
+  height:1px;
+  background:linear-gradient(90deg,transparent,rgba(90,113,132,.35),transparent);
+}
+
+.divider span { padding:0 1rem; }
+
+.auth-footer {
+  display:flex;
+  flex-direction:column;
+  gap:.45rem;
+  text-align:center;
+}
+
+.auth-footer p { margin:0; }
