@@ -33,9 +33,11 @@
       </div>
       <button class="btn btn-primary btn-sm">Search</button>
       <a href="{% url 'customer_list' %}" class="btn btn-outline-secondary btn-sm">Clear</a>
+      {% if not is_admin %}
       <a href="{% url 'add_customer' %}" class="btn btn-success btn-sm ms-auto">
         <i class="bi bi-person-plus me-1"></i>Add Customer
       </a>
+      {% endif %}
     </form>
   </div>
 </div>
@@ -117,7 +119,7 @@
           <td colspan="7" class="text-center text-muted py-5">
             <i class="bi bi-people" style="font-size:2rem"></i><br>
             No customers found
-            {% if not search %}
+            {% if not search and not is_admin %}
             — <a href="{% url 'add_customer' %}">Add the first one</a>
             {% endif %}
           </td>
