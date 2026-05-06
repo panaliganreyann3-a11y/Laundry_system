@@ -25,6 +25,7 @@ from laundry.models import (
     ActivityLog,
     UserProfile,
 )
+from laundry.validators import is_allowed_email, is_valid_contact
 from laundry.views import (
     ITEMS_PER_PAGE,
     is_admin,
@@ -428,6 +429,14 @@ def add_account(request):
             if not all([name, contact, email, address]):
                 user.delete()
                 messages.error(request, "Customer name, contact, email, and address are required.")
+                return redirect('add_account')
+            if not is_valid_contact(contact):
+                user.delete()
+                messages.error(request, "Contact number must be exactly 11 digits and start with 09.")
+                return redirect('add_account')
+            if not is_allowed_email(email):
+                user.delete()
+                messages.error(request, "Enter a valid non-disposable email address.")
                 return redirect('add_account')
             existing_customer = Customer.objects.filter(Q(email__iexact=email) | Q(contact=contact)).first()
             if existing_customer and existing_customer.user_id:

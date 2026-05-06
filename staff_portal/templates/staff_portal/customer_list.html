@@ -94,7 +94,11 @@
             {% elif customer.user_id %}
             <span class="badge bg-info-subtle text-info border border-info-subtle">Online</span>
             {% else %}
+            {% if customer.status == 'NEW' %}
+            <span class="badge bg-info-subtle text-info border border-info-subtle">New</span>
+            {% else %}
             <span class="badge bg-success-subtle text-success border border-success-subtle">Regular</span>
+            {% endif %}
             {% endif %}
           </td>
           <td>

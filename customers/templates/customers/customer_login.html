@@ -1,15 +1,19 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Customer Login - Smart Laundry</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="{% static 'accounts/css/auth.css' %}" rel="stylesheet">
 </head>
 <body class="bg-light">
 <div class="container d-flex justify-content-center align-items-center" style="min-height:100vh">
   <div class="card shadow border-0" style="width:100%;max-width:420px">
     <div class="card-body p-4">
+      <div class="brand-mark"><i class="bi bi-water"></i></div>
       <h4 class="fw-bold mb-1 text-center">Customer Login</h4>
       <p class="text-muted text-center mb-4">Pickup and delivery portal</p>
       {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
@@ -39,5 +43,6 @@
     </div>
   </div>
 </div>
+<script src="{% static 'accounts/js/auth.js' %}"></script>
 </body>
 </html>
