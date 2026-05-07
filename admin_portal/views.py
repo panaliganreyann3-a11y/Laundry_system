@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group, User
 from django.core.paginator import Paginator
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import Case, Count, F, IntegerField, Q, Sum, When
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse, HttpResponseForbidden
@@ -384,6 +384,14 @@ def account_list(request):
     ).exclude(
         id__in=customer_accounts.values('id')
     ).distinct().order_by('username')
+    account_ids = set(admin_accounts.values_list('id', flat=True))
+    account_ids.update(staff_accounts.values_list('id', flat=True))
+    account_ids.update(customer_accounts.values_list('id', flat=True))
+    profiled_ids = set(UserProfile.objects.filter(user_id__in=account_ids).values_list('user_id', flat=True))
+    UserProfile.objects.bulk_create(
+        [UserProfile(user_id=user_id) for user_id in account_ids - profiled_ids],
+        ignore_conflicts=True,
+    )
 
     return render(request, 'admin_portal/account_list.html', {
         'admin_accounts': admin_accounts,
@@ -409,6 +417,9 @@ def add_account(request):
         if role == 'customer':
             username = email
 
+        if role not in {'staff', 'admin', 'customer'}:
+            messages.error(request, "Choose a valid account type.")
+            return redirect('add_account')
         if not username or not password:
             messages.error(request, "Username/email and password are required.")
             return redirect('add_account')
@@ -422,59 +433,65 @@ def add_account(request):
             messages.error(request, f"Email '{email}' is already used.")
             return redirect('add_account')
 
-        user = User.objects.create_user(username=username, email=email, password=password)
-        UserProfile.objects.get_or_create(user=user)
-        if role == 'admin':
-            user.is_superuser = True
-            user.is_staff = True
-            user.save()
-            admin_group, _ = Group.objects.get_or_create(name='Admin')
-            user.groups.add(admin_group)
-        elif role == 'customer':
+        if role == 'customer':
             name = request.POST.get('name', '').strip()
             contact = request.POST.get('contact', '').strip()
             address = request.POST.get('address', '').strip()
             if not all([name, contact, email, address]):
-                user.delete()
                 messages.error(request, "Customer name, contact, email, and address are required.")
                 return redirect('add_account')
             if not is_valid_contact(contact):
-                user.delete()
                 messages.error(request, "Contact number must be exactly 11 digits and start with 09.")
                 return redirect('add_account')
             if not is_allowed_email(email):
-                user.delete()
                 messages.error(request, "Enter a valid non-disposable email address.")
                 return redirect('add_account')
             existing_customer = Customer.objects.filter(Q(email__iexact=email) | Q(contact=contact)).first()
             if existing_customer and existing_customer.user_id:
-                user.delete()
                 messages.error(request, "A customer account already exists for that email or contact number.")
                 return redirect('add_account')
-            customer_group, _ = Group.objects.get_or_create(name='Customer')
-            user.groups.add(customer_group)
-            user.first_name = name
-            user.save(update_fields=['first_name'])
-            if existing_customer:
-                existing_customer.user = user
-                existing_customer.name = name
-                existing_customer.contact = contact
-                existing_customer.email = email
-                existing_customer.address = address
-                existing_customer.is_walk_in = False
-                existing_customer.save()
-            else:
-                Customer.objects.create(
-                    user=user,
-                    name=name,
-                    contact=contact,
-                    email=email,
-                    address=address,
-                    is_walk_in=False,
-                )
-        else:
-            group, _ = Group.objects.get_or_create(name='Staff')
-            user.groups.add(group)
+
+        try:
+            with transaction.atomic():
+                user = User.objects.create_user(username=username, email=email, password=password)
+                UserProfile.objects.get_or_create(user=user)
+                if role == 'admin':
+                    user.is_superuser = True
+                    user.is_staff = True
+                    user.save(update_fields=['is_superuser', 'is_staff'])
+                    admin_group, _ = Group.objects.get_or_create(name='Admin')
+                    user.groups.add(admin_group)
+                elif role == 'customer':
+                    customer_group, _ = Group.objects.get_or_create(name='Customer')
+                    user.groups.add(customer_group)
+                    user.first_name = name
+                    user.save(update_fields=['first_name'])
+                    if existing_customer:
+                        existing_customer.user = user
+                        existing_customer.name = name
+                        existing_customer.contact = contact
+                        existing_customer.email = email
+                        existing_customer.address = address
+                        existing_customer.is_walk_in = False
+                        existing_customer.save()
+                    else:
+                        Customer.objects.create(
+                            user=user,
+                            name=name,
+                            contact=contact,
+                            email=email,
+                            address=address,
+                            is_walk_in=False,
+                        )
+                else:
+                    group, _ = Group.objects.get_or_create(name='Staff')
+                    user.groups.add(group)
+        except IntegrityError:
+            messages.error(request, "That account could not be created because one of the values is already in use.")
+            return redirect('add_account')
+        except Exception:
+            messages.error(request, "That account could not be created. Please check the details and try again.")
+            return redirect('add_account')
         messages.success(request, f"{role.title()} account '{username}' created.")
         log_activity(
             request.user,

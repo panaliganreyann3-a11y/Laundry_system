@@ -14,6 +14,7 @@ from django.core.files.base import ContentFile
 from .models import ActivityLog, Order, ServiceInventoryUsage, StockMovement
 
 ITEMS_PER_PAGE = 20
+TRACKING_BASE_URL = 'http://127.0.0.1:8000/track/'
 
 
 def local_day_range(day):
@@ -168,7 +169,7 @@ def advance_order_status(order, user=None):
     return True
 
 
-def generate_qr_for_order(order):
+def generate_order_summary_qr_for_order(order):
     qr_data = (
         f"Order #{order.id}\n"
         f"Customer: {order.customer.name}\n"
@@ -179,6 +180,27 @@ def generate_qr_for_order(order):
         f"Status: {order.get_status_display()}"
     )
     qr = qrcode.make(qr_data)
+    buffer = io.BytesIO()
+    qr.save(buffer, format='PNG')
+    buffer.seek(0)
+
+    if order.qr_code:
+        old_path = os.path.join(settings.MEDIA_ROOT, str(order.qr_code))
+        if os.path.exists(old_path):
+            os.remove(old_path)
+        order.qr_code = None
+        order.save()
+
+    order.qr_code.save(f"order_{order.id}.png", ContentFile(buffer.read()), save=True)
+
+
+def generate_qr_for_order(order):
+    if not order.tracking_number:
+        order.tracking_number = Order._meta.get_field('tracking_number').get_default()
+        order.save(update_fields=['tracking_number', 'updated_at'])
+
+    tracking_url = f"{TRACKING_BASE_URL}?tracking_number={order.tracking_number}"
+    qr = qrcode.make(tracking_url)
     buffer = io.BytesIO()
     qr.save(buffer, format='PNG')
     buffer.seek(0)
@@ -212,13 +234,20 @@ def refresh_order_payment_from_verified_records(order):
 # ── Customer List ─────────────────────────
 def track_order(request):
     order, error = None, None
-    order_id = (request.GET.get('order_id') or request.POST.get('order_id', '')).strip()
-    if order_id:
+    tracking_number = (
+        request.GET.get('tracking_number')
+        or request.POST.get('tracking_number', '')
+    ).strip().upper()
+    if tracking_number:
         try:
-            order = Order.objects.select_related('customer').get(id=int(order_id))
-        except (Order.DoesNotExist, ValueError):
-            error = f"No order found with ID #{order_id}."
-    return render(request, 'laundry/track_order.html', {'order': order, 'error': error})
+            order = Order.objects.select_related('customer').get(tracking_number=tracking_number)
+        except Order.DoesNotExist:
+            error = "No order found with that tracking number."
+    return render(request, 'laundry/track_order.html', {
+        'order': order,
+        'error': error,
+        'tracking_number': tracking_number,
+    })
 
 
 # ── Staff List ────────────────────────────

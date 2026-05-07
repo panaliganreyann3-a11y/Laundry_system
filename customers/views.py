@@ -286,6 +286,9 @@ def submit_gcash_payment(request, order_id):
     if amount <= 0:
         messages.error(request, "Enter the amount paid through GCash.")
         return redirect('customer_order_detail', order_id=order.id)
+    if amount + 0.01 < order.balance:
+        messages.error(request, f"GCash payment must cover the current balance of {order.balance:.2f}.")
+        return redirect('customer_order_detail', order_id=order.id)
     reference_number = request.POST.get('reference_number', '').strip()
     proof_image = request.FILES.get('proof_image')
     if not reference_number or not proof_image:

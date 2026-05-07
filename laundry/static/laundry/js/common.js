@@ -101,13 +101,25 @@ function initContactValidation() {
     input.maxLength = 11;
     input.pattern = '\\d{11}';
 
+    function shouldValidateContact() {
+      return input.required || input.value.trim() !== '';
+    }
+
     input.addEventListener('input', () => {
       input.value = input.value.replace(/\D/g, '').slice(0, 11);
+      if (!shouldValidateContact()) {
+        input.setCustomValidity('');
+        return;
+      }
       const valid = /^09\d{9}$/.test(input.value);
       input.setCustomValidity(valid ? '' : 'Contact number must be exactly 11 digits and start with 09.');
     });
 
     input.form?.addEventListener('submit', (event) => {
+      if (!shouldValidateContact()) {
+        input.setCustomValidity('');
+        return;
+      }
       if (/^09\d{9}$/.test(input.value)) return;
       input.setCustomValidity('Contact number must be exactly 11 digits and start with 09.');
       input.reportValidity();

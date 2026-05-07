@@ -1,9 +1,10 @@
 from django.test import TestCase, Client
 from django.contrib.auth.models import User, Group
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import ActivityLog, Customer, Order, PricingConfig
+from .models import ActivityLog, Customer, Order, Payment, PricingConfig
 
 
 def make_admin(username='admin', password='adminpass123'):
@@ -121,6 +122,60 @@ class StatusWorkflowTest(TestCase):
         self.order.refresh_from_db()
         self.assertEqual(self.order.status, 'COMPLETED')
         self.assertIsNotNone(self.order.claimed_at)
+
+    def test_verified_gcash_payment_allows_processing(self):
+        staff = make_staff()
+        self.client.force_login(staff)
+        self.order.status = 'BILL_SENT'
+        self.order.payment_method = 'GCASH'
+        self.order.total_amount = 90
+        self.order.balance = 90
+        self.order.payment_status = 'PENDING_VERIFICATION'
+        self.order.save()
+        Payment.objects.create(
+            order=self.order,
+            payment_method='GCASH',
+            amount=90,
+            status='VERIFIED',
+            reference_number='GCASH123',
+        )
+
+        self.client.get(reverse('update_status', args=[self.order.id]))
+        self.order.refresh_from_db()
+
+        self.assertEqual(self.order.payment_status, 'PAID')
+        self.assertEqual(self.order.status, 'PROCESSING')
+
+    def test_customer_gcash_payment_must_cover_balance(self):
+        user = User.objects.create_user(
+            username='customer@example.com',
+            email='customer@example.com',
+            password='customerpass123',
+        )
+        customer = Customer.objects.create(
+            user=user,
+            name='GCash Customer',
+            contact='09999999999',
+            email='customer@example.com',
+            address='Test address',
+        )
+        order = Order.objects.create(
+            customer=customer,
+            status='BILL_SENT',
+            payment_method='GCASH',
+            total_amount=150,
+            balance=150,
+            payment_status='UNPAID',
+        )
+        self.client.force_login(user)
+
+        self.client.post(reverse('submit_gcash_payment', args=[order.id]), {
+            'amount': '100',
+            'reference_number': 'UNDERPAID',
+            'proof_image': SimpleUploadedFile('proof.jpg', b'proof', content_type='image/jpeg'),
+        })
+
+        self.assertFalse(Payment.objects.filter(order=order).exists())
 
 
 class RoleBasedAccessTest(TestCase):

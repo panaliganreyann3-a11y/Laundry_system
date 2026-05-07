@@ -12,14 +12,12 @@
     <div class="card shadow" id="receipt-card">
       <div class="card-body p-4">
 
-        <!-- Header -->
         <div class="text-center mb-3">
-          <h4>🧺 Smart Laundry</h4>
+          <h4>Smart Laundry</h4>
           <small class="text-muted">Official Order Slip</small>
           <hr>
         </div>
 
-        <!-- Order Info -->
         <table class="table table-borderless table-sm">
           <tr>
             <td class="text-muted">Order #</td>
@@ -67,37 +65,39 @@
             <td class="text-muted">Total</td>
             <td><strong class="text-success fs-5">{{ order.total_amount|peso }}</strong></td>
           </tr>
+          <tr>
+            <td class="text-muted">Tracking #</td>
+            <td><strong>{{ order.tracking_number }}</strong></td>
+          </tr>
         </table>
 
-        <!-- QR Code -->
         {% if order.qr_code %}
         <div class="text-center mt-3">
           <img src="{{ order.qr_code.url }}" width="160" height="160" alt="QR Code">
           <br>
-          <small class="text-muted">Scan to verify order</small>
+          <small class="text-muted">Scan to track order</small>
         </div>
         {% endif %}
 
         <hr>
-       <p class="text-center text-muted small mb-0">
-              Thank you for choosing Smart Laundry!
-            </p>
-            <p class="text-center small mt-1">
-              Track your order at:
-              <strong>192.168.1.50:8000/track/</strong>
-              — Order ID: <strong>#{{ order.id }}</strong>
-            </p>
+        <p class="text-center text-muted small mb-0">
+          Thank you for choosing Smart Laundry!
+        </p>
+        <p class="text-center small mt-1">
+          Track your order at:
+          <strong>{{ tracking_base_url }}</strong>
+          Tracking #: <strong>{{ order.tracking_number }}</strong>
+        </p>
 
       </div>
     </div>
 
-    <!-- Action Buttons -->
     <div class="d-flex gap-2 mt-3">
       <button onclick="window.print()" class="btn btn-primary flex-fill">
-        🖨️ Print Slip
+        Print Slip
       </button>
       <a href="{% if is_admin %}{% url 'admin_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn btn-outline-secondary flex-fill">
-        ← Back
+        Back
       </a>
     </div>
 

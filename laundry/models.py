@@ -1,6 +1,11 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+import secrets
+
+
+def generate_tracking_number():
+    return secrets.token_urlsafe(12).replace('-', '').replace('_', '')[:16].upper()
 
 
 class PricingConfig(models.Model):
@@ -176,6 +181,12 @@ class Order(models.Model):
     decline_reason = models.TextField(blank=True, null=True)
 
     qr_code = models.ImageField(upload_to='qr_codes/', null=True, blank=True)
+    tracking_number = models.CharField(
+        max_length=20,
+        unique=True,
+        default=generate_tracking_number,
+        db_index=True,
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

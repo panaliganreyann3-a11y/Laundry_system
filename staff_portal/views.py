@@ -20,6 +20,7 @@ from laundry.models import (
 from laundry.validators import is_valid_contact
 from laundry.views import (
     ITEMS_PER_PAGE,
+    TRACKING_BASE_URL,
     advance_order_status,
     deduct_inventory_for_order,
     generate_qr_for_order,
@@ -410,6 +411,9 @@ def add_order(request):
 @login_required
 def update_status(request, order_id):
     order = get_object_or_404(Order, id=order_id)
+    if order.payment_method == 'GCASH':
+        refresh_order_payment_from_verified_records(order)
+        order.refresh_from_db()
     if order.status == 'PENDING_PICKUP':
         messages.error(request, "Pending pickup requests must be accepted or declined by staff.")
         return redirect(request.META.get('HTTP_REFERER', 'staff_dashboard'))
@@ -514,6 +518,9 @@ def bulk_update_status(request):
             for oid in order_ids:
                 order = Order.objects.filter(id=oid).first()
                 old_status = order.status if order else None
+                if order and order.payment_method == 'GCASH':
+                    refresh_order_payment_from_verified_records(order)
+                    order.refresh_from_db()
                 if order and order.status != 'PENDING_PICKUP' and advance_order_status(order, request.user):
                     log_activity(
                         request.user,
@@ -595,6 +602,7 @@ def verify_payment(request, payment_id):
     payment.paid_at = timezone.now()
     payment.save(update_fields=['status', 'verified_by', 'paid_at', 'updated_at'])
     refresh_order_payment_from_verified_records(payment.order)
+    payment.order.refresh_from_db()
     log_activity(
         request.user,
         'PAYMENT',
@@ -602,7 +610,13 @@ def verify_payment(request, payment_id):
         f"Verified GCash payment #{payment.id} for Order #{payment.order_id}.",
         payment,
     )
-    messages.success(request, f"GCash payment #{payment.id} verified.")
+    if payment.order.payment_status == 'PAID':
+        messages.success(request, f"GCash payment #{payment.id} verified. Order #{payment.order_id} is now paid.")
+    else:
+        messages.warning(
+            request,
+            f"GCash payment #{payment.id} verified, but Order #{payment.order_id} still has a balance of {payment.order.balance:.2f}.",
+        )
     return redirect(request.META.get('HTTP_REFERER', 'admin_dashboard' if is_admin(request.user) else 'staff_dashboard'))
 
 @login_required
@@ -680,10 +694,14 @@ def customer_detail(request, customer_id):
 @login_required
 def order_receipt(request, order_id):
     order = get_object_or_404(Order, id=order_id)
-    if not order.qr_code:
+    if order.order_type == 'WALK_IN' or not order.qr_code:
         generate_qr_for_order(order)
         order.refresh_from_db()
-    return render(request, 'staff_portal/receipt.html', {'order': order, 'is_admin': is_admin(request.user)})
+    return render(request, 'staff_portal/receipt.html', {
+        'order': order,
+        'is_admin': is_admin(request.user),
+        'tracking_base_url': TRACKING_BASE_URL,
+    })
 
 
 # ── Reports ───────────────────────────────
