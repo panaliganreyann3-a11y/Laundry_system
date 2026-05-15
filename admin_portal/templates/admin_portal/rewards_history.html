@@ -1,0 +1,97 @@
+{% extends 'laundry/base.html' %}
+{% load laundry_filters %}
+{% block title %}Rewards History{% endblock %}
+{% block page_title %}Rewards History{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Active Customer Points</div>
+        <div class="fw-bold fs-3 text-warning">{{ total_points }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-muted small">Rewards Redeemed</div>
+        <div class="fw-bold fs-3 text-success">{{ redeemed_discount|peso }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<form method="get" class="card mb-3">
+  <div class="card-body">
+    <div class="row g-2">
+      <div class="col-md-6">
+        <input type="text" name="search" class="form-control" placeholder="Search customer or order..." value="{{ search }}">
+      </div>
+      <div class="col-md-3">
+        <select name="type" class="form-select">
+          <option value="">All Types</option>
+          {% for value, label in transaction_types %}
+          <option value="{{ value }}" {% if transaction_type == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button class="btn btn-primary flex-fill">Filter</button>
+        <a href="{% url 'rewards_history' %}" class="btn btn-outline-secondary flex-fill">Clear</a>
+      </div>
+    </div>
+  </div>
+</form>
+
+<div class="card">
+  <div class="card-body p-0 table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Date</th>
+          <th>Customer</th>
+          <th>Order</th>
+          <th>Type</th>
+          <th>Points</th>
+          <th>Discount</th>
+          <th>Service</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tx in transactions %}
+        <tr>
+          <td class="text-muted small">{{ tx.created_at|date:"M d, Y h:i A" }}</td>
+          <td>
+            <a href="{% url 'customer_detail' tx.customer.id %}" class="fw-semibold text-decoration-none">{{ tx.customer.name }}</a>
+          </td>
+          <td>{% if tx.order %}#{{ tx.order.id }}{% else %}-{% endif %}</td>
+          <td><span class="badge bg-light text-dark border">{{ tx.get_transaction_type_display }}</span></td>
+          <td class="{% if tx.points < 0 %}text-danger{% else %}text-success{% endif %} fw-semibold">{{ tx.points }}</td>
+          <td>{{ tx.discount_amount|peso }}</td>
+          <td><small>{{ tx.service_type|default:"-" }}</small></td>
+          <td><small class="text-muted">{{ tx.description }}</small></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center text-muted py-4">No rewards history yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page_obj.has_other_pages %}
+  <div class="card-footer d-flex justify-content-between align-items-center">
+    <small class="text-muted">{{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</small>
+    <div class="btn-group">
+      {% if page_obj.has_previous %}
+      <a class="btn btn-sm btn-outline-secondary" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if transaction_type %}&type={{ transaction_type }}{% endif %}">Previous</a>
+      {% endif %}
+      {% if page_obj.has_next %}
+      <a class="btn btn-sm btn-outline-secondary" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if transaction_type %}&type={{ transaction_type }}{% endif %}">Next</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ActivityLog, Customer, Order, Payment, PricingConfig, ServiceInventoryUsage, SiteSettings, UserProfile
+from .models import ActivityLog, Customer, Order, Payment, PricingConfig, RewardTransaction, ServiceInventoryUsage, SiteSettings, UserProfile
 
 @admin.register(PricingConfig)
 class PricingConfigAdmin(admin.ModelAdmin):
@@ -18,11 +18,11 @@ class UserProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ['name', 'contact', 'status', 'created_at']
+    list_display = ['name', 'contact', 'status', 'loyalty_points', 'points_last_transaction_at', 'created_at']
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ['id', 'customer', 'status', 'weight', 'total_amount', 'amount_paid', 'balance', 'payment_status', 'created_at']
+    list_display = ['id', 'customer', 'status', 'weight', 'total_amount', 'amount_paid', 'balance', 'payment_status', 'points_redeemed', 'points_awarded', 'created_at']
     list_filter = ['status', 'payment_status', 'payment_method', 'is_priority', 'service_type']
 
 
@@ -30,6 +30,13 @@ class OrderAdmin(admin.ModelAdmin):
 class PaymentAdmin(admin.ModelAdmin):
     list_display = ['id', 'order', 'payment_method', 'amount', 'status', 'verified_by', 'received_by', 'paid_at', 'created_at']
     list_filter = ['payment_method', 'status']
+
+
+@admin.register(RewardTransaction)
+class RewardTransactionAdmin(admin.ModelAdmin):
+    list_display = ['created_at', 'customer', 'order', 'transaction_type', 'points', 'discount_amount', 'service_type']
+    list_filter = ['transaction_type', 'service_type', 'created_at']
+    search_fields = ['customer__name', 'customer__email', 'description']
 
 
 @admin.register(ServiceInventoryUsage)

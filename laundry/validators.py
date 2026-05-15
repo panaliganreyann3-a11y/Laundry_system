@@ -14,6 +14,7 @@ DISPOSABLE_EMAIL_DOMAINS = {
     '10minutemail.com', 'guerrillamail.com', 'mailinator.com',
     'tempmail.com', 'temp-mail.org', 'yopmail.com',
 }
+GMAIL_DOMAINS = {'gmail.com', 'googlemail.com'}
 
 
 def is_valid_contact(contact):
@@ -28,6 +29,16 @@ def is_allowed_email(email):
         return False
     domain = value.rsplit('@', 1)[-1]
     return domain not in DISPOSABLE_EMAIL_DOMAINS
+
+
+def is_gmail_email(email):
+    value = (email or '').strip().lower()
+    try:
+        validate_email(value)
+    except ValidationError:
+        return False
+    domain = value.rsplit('@', 1)[-1]
+    return domain in GMAIL_DOMAINS
 
 
 def is_alphanumeric_password(password):

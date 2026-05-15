@@ -1,47 +1,43 @@
 from django.contrib.auth import authenticate, login as auth_login
+from django.contrib.auth.models import User
 from django.shortcuts import redirect, render
 
 from laundry.views import is_admin, is_customer_user
 
 
-def admin_login(request):
-    if request.user.is_authenticated:
-        if is_customer_user(request.user):
-            return redirect('customer_dashboard')
-        return redirect('admin_dashboard' if is_admin(request.user) else 'staff_dashboard')
-    error = None
-    if request.method == 'POST':
-        user = authenticate(
-            request,
-            username=request.POST.get('username', '').strip(),
-            password=request.POST.get('password', ''),
-        )
-        if user and is_admin(user):
-            auth_login(request, user)
-            return redirect('admin_dashboard')
-        error = "Invalid credentials or not an admin account."
-    return render(request, 'accounts/admin_login.html', {'error': error})
+def role_redirect(user):
+    if is_customer_user(user):
+        return redirect('customer_dashboard')
+    if is_admin(user):
+        return redirect('admin_dashboard')
+    return redirect('staff_dashboard')
 
 
-def staff_login(request):
+def find_login_username(identifier):
+    identifier = identifier.strip()
+    if not identifier:
+        return identifier
+    if '@' not in identifier:
+        return identifier
+    user = User.objects.filter(email__iexact=identifier).first()
+    return user.username if user else identifier.lower()
+
+
+def login(request):
     if request.user.is_authenticated:
-        if is_customer_user(request.user):
-            return redirect('customer_dashboard')
-        return redirect('admin_dashboard' if is_admin(request.user) else 'staff_dashboard')
+        return role_redirect(request.user)
+
     error = None
     if request.method == 'POST':
+        identifier = request.POST.get('username', '').strip()
         user = authenticate(
             request,
-            username=request.POST.get('username', '').strip(),
+            username=find_login_username(identifier),
             password=request.POST.get('password', ''),
         )
-        if user and is_customer_user(user):
-            error = "Please use the customer login page."
-        elif user and not is_admin(user):
+        if user:
             auth_login(request, user)
-            return redirect('staff_dashboard')
-        elif user and is_admin(user):
-            error = "Please use the admin login page."
-        else:
-            error = "Invalid username or password."
-    return render(request, 'accounts/staff_login.html', {'error': error})
+            return role_redirect(user)
+        error = "Invalid username/email or password."
+
+    return render(request, 'accounts/login.html', {'error': error})

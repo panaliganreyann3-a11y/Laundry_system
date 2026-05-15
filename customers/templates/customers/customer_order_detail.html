@@ -29,6 +29,12 @@
           {% if order.delivery_fee %}
           <dt class="col-sm-4">Delivery Fee</dt><dd class="col-sm-8">{{ order.delivery_fee|peso }}</dd>
           {% endif %}
+          {% if order.discount %}
+          <dt class="col-sm-4">Discount</dt><dd class="col-sm-8">{{ order.discount|peso }}</dd>
+          {% endif %}
+          {% if order.points_discount %}
+          <dt class="col-sm-4">Rewards Used</dt><dd class="col-sm-8">{{ order.points_redeemed }} pts · {{ order.points_discount|peso }}</dd>
+          {% endif %}
           <dt class="col-sm-4">Total Amount</dt><dd class="col-sm-8">{{ order.total_amount|peso }}</dd>
           <dt class="col-sm-4">Amount Paid</dt><dd class="col-sm-8">{{ order.amount_paid|peso }}</dd>
           <dt class="col-sm-4">Balance</dt><dd class="col-sm-8">{{ order.balance|peso }}</dd>
@@ -59,6 +65,26 @@
     </div>
   </div>
   <div class="col-lg-5">
+    {% if order.total_amount > 0 and order.payment_status != 'PAID' and order.amount_paid <= 0 and order.status != 'CANCELLED' %}
+    <div class="card mb-3">
+      <div class="card-header bg-white"><strong>Redeem Rewards</strong></div>
+      <div class="card-body">
+        <div class="mb-2">
+          <span class="fw-semibold">{{ customer.loyalty_points }} points</span>
+          <span class="text-muted small">available · 10 points = ₱50 discount</span>
+        </div>
+        <form method="post" action="{% url 'customer_redeem_points' order.id %}">
+          {% csrf_token %}
+          <div class="input-group">
+            <input type="number" step="10" min="10" name="points_to_redeem" class="form-control" placeholder="10">
+            <button class="btn btn-outline-primary">Redeem</button>
+          </div>
+          <div class="form-text">Points are discounts only and cannot be converted to cash.</div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
     {% if order.payment_method == 'GCASH' and order.total_amount > 0 and order.payment_status != 'PAID' %}
     <div class="card mb-3">
       <div class="card-header bg-white"><strong>Pay with GCash</strong></div>

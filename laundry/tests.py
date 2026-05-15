@@ -1,10 +1,13 @@
-from django.test import TestCase, Client
+from django.core import mail
+from django.test import TestCase, Client, override_settings
 from django.contrib.auth.models import User, Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import ActivityLog, Customer, Order, Payment, PricingConfig
+from .models import ActivityLog, Customer, Order, Payment, PricingConfig, RewardTransaction
+from .validators import is_gmail_email
+from .views import expire_customer_points, redeem_points_for_order
 
 
 def make_admin(username='admin', password='adminpass123'):
@@ -177,6 +180,198 @@ class StatusWorkflowTest(TestCase):
 
         self.assertFalse(Payment.objects.filter(order=order).exists())
 
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_walkin_ready_for_pickup_sends_customer_email(self):
+        self.customer.email = 'walkin.customer@gmail.com'
+        self.customer.save(update_fields=['email'])
+        self.order.status = 'PROCESSING'
+        self.order.save(update_fields=['status'])
+        staff = make_staff()
+        self.client.force_login(staff)
+
+        self.client.get(reverse('update_status', args=[self.order.id]))
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('ready for pickup', mail.outbox[0].subject.lower())
+        self.assertEqual(mail.outbox[0].to, ['walkin.customer@gmail.com'])
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_pickup_delivery_out_for_delivery_sends_customer_email(self):
+        customer = Customer.objects.create(
+            name='Delivery Customer',
+            contact='09111111112',
+            email='delivery.customer@gmail.com',
+        )
+        order = Order.objects.create(
+            customer=customer,
+            order_type='PICKUP_DELIVERY',
+            status='READY_FOR_DELIVERY',
+            payment_method='CASH_AFTER_DELIVERY',
+        )
+        staff = make_staff()
+        self.client.force_login(staff)
+
+        self.client.get(reverse('update_status', args=[order.id]))
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('out for delivery', mail.outbox[0].subject.lower())
+        self.assertEqual(mail.outbox[0].to, ['delivery.customer@gmail.com'])
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_processing_sends_customer_email(self):
+        self.customer.email = 'processing.customer@gmail.com'
+        self.customer.save(update_fields=['email'])
+        self.order.status = 'WEIGHED'
+        self.order.save(update_fields=['status'])
+        staff = make_staff()
+        self.client.force_login(staff)
+
+        self.client.get(reverse('update_status', args=[self.order.id]))
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('being processed', mail.outbox[0].subject.lower())
+        self.assertEqual(mail.outbox[0].to, ['processing.customer@gmail.com'])
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_pickup_accepted_sends_customer_email(self):
+        customer = Customer.objects.create(
+            name='Pickup Customer',
+            contact='09111111113',
+            email='pickup.customer@gmail.com',
+        )
+        order = Order.objects.create(
+            customer=customer,
+            order_type='PICKUP_DELIVERY',
+            status='PENDING_PICKUP',
+        )
+        staff = make_staff()
+        self.client.force_login(staff)
+
+        self.client.post(reverse('accept_pickup_request', args=[order.id]))
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('going to pick up', mail.outbox[0].subject.lower())
+        self.assertEqual(mail.outbox[0].to, ['pickup.customer@gmail.com'])
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_pickup_delivery_ready_for_delivery_sends_customer_email(self):
+        customer = Customer.objects.create(
+            name='Ready Delivery Customer',
+            contact='09111111114',
+            email='ready.delivery.customer@gmail.com',
+        )
+        order = Order.objects.create(
+            customer=customer,
+            order_type='PICKUP_DELIVERY',
+            status='PROCESSING',
+        )
+        staff = make_staff()
+        self.client.force_login(staff)
+
+        self.client.get(reverse('update_status', args=[order.id]))
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('done processing', mail.outbox[0].subject.lower())
+        self.assertEqual(mail.outbox[0].to, ['ready.delivery.customer@gmail.com'])
+
+
+class CustomerAccountEmailValidationTest(TestCase):
+    def test_customer_account_requires_gmail(self):
+        self.assertTrue(is_gmail_email('customer@gmail.com'))
+        self.assertFalse(is_gmail_email('customer@yahoo.com'))
+
+
+class RewardsFlowTest(TestCase):
+    def setUp(self):
+        self.staff = make_staff()
+        self.customer = make_customer()
+        make_config()
+
+    def test_completed_paid_order_awards_points_once(self):
+        order = Order.objects.create(
+            customer=self.customer,
+            status='READY_FOR_PICKUP',
+            payment_status='PAID',
+            total_amount=100,
+            amount_paid=100,
+        )
+        self.client.force_login(self.staff)
+
+        self.client.get(reverse('update_status', args=[order.id]))
+        self.client.get(reverse('update_status', args=[order.id]))
+
+        self.customer.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'COMPLETED')
+        self.assertTrue(order.points_awarded)
+        self.assertEqual(self.customer.loyalty_points, 1)
+        self.assertEqual(RewardTransaction.objects.filter(transaction_type=RewardTransaction.EARN).count(), 1)
+
+    def test_unpaid_order_does_not_award_points(self):
+        order = Order.objects.create(
+            customer=self.customer,
+            status='READY_FOR_PICKUP',
+            payment_status='UNPAID',
+            total_amount=100,
+        )
+        self.client.force_login(self.staff)
+
+        self.client.get(reverse('update_status', args=[order.id]))
+
+        self.customer.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'READY_FOR_PICKUP')
+        self.assertFalse(order.points_awarded)
+        self.assertEqual(self.customer.loyalty_points, 0)
+
+    def test_redeem_points_adds_discount_and_balances_points(self):
+        self.customer.loyalty_points = 20
+        self.customer.points_last_transaction_at = timezone.now()
+        self.customer.save(update_fields=['loyalty_points', 'points_last_transaction_at'])
+        order = Order.objects.create(
+            customer=self.customer,
+            status='WEIGHED',
+            weight=5,
+            price_per_kg=30,
+            payment_status='UNPAID',
+        )
+        order.calculate_totals()
+        order.save()
+
+        ok, _message = redeem_points_for_order(order, 10)
+
+        self.assertTrue(ok)
+        self.customer.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(self.customer.loyalty_points, 10)
+        self.assertEqual(order.points_redeemed, 10)
+        self.assertEqual(order.points_discount, 50)
+        self.assertEqual(order.total_amount, 100)
+
+    def test_cancelled_order_cannot_redeem_points(self):
+        self.customer.loyalty_points = 10
+        self.customer.points_last_transaction_at = timezone.now()
+        self.customer.save(update_fields=['loyalty_points', 'points_last_transaction_at'])
+        order = Order.objects.create(customer=self.customer, status='CANCELLED', payment_status='CANCELLED')
+
+        ok, _message = redeem_points_for_order(order, 10)
+
+        self.customer.refresh_from_db()
+        self.assertFalse(ok)
+        self.assertEqual(self.customer.loyalty_points, 10)
+
+    def test_points_expire_after_six_months_without_transaction(self):
+        self.customer.loyalty_points = 10
+        self.customer.points_last_transaction_at = timezone.now() - timezone.timedelta(days=184)
+        self.customer.save(update_fields=['loyalty_points', 'points_last_transaction_at'])
+
+        expired = expire_customer_points(self.customer)
+
+        self.customer.refresh_from_db()
+        self.assertEqual(expired, 10)
+        self.assertEqual(self.customer.loyalty_points, 0)
+        self.assertEqual(RewardTransaction.objects.filter(transaction_type=RewardTransaction.EXPIRE).count(), 1)
+
 
 class RoleBasedAccessTest(TestCase):
     def setUp(self):
@@ -229,7 +424,40 @@ class RoleBasedAccessTest(TestCase):
     def test_unauthenticated_redirected_to_login(self):
         response = self.client.get(reverse('admin_dashboard'))
         self.assertEqual(response.status_code, 302)
-        self.assertIn('/staff-login/', response['Location'])
+        self.assertIn('/login/', response['Location'])
+
+    def test_single_login_redirects_admin_to_admin_dashboard(self):
+        response = self.client.post(reverse('login'), {
+            'username': self.admin.username,
+            'password': 'adminpass123',
+        })
+        self.assertRedirects(response, reverse('admin_dashboard'))
+
+    def test_single_login_redirects_staff_to_staff_dashboard(self):
+        response = self.client.post(reverse('login'), {
+            'username': self.staff.username,
+            'password': 'staffpass123',
+        })
+        self.assertRedirects(response, reverse('staff_dashboard'))
+
+    def test_single_login_redirects_customer_to_customer_dashboard(self):
+        user = User.objects.create_user(
+            username='customer@example.com',
+            email='customer@example.com',
+            password='customerpass123',
+        )
+        Customer.objects.create(
+            user=user,
+            name='Portal Customer',
+            contact='09111111111',
+            email='customer@example.com',
+            address='Test address',
+        )
+        response = self.client.post(reverse('login'), {
+            'username': 'customer@example.com',
+            'password': 'customerpass123',
+        })
+        self.assertRedirects(response, reverse('customer_dashboard'))
 
     def test_admin_dashboard_redirects_staff(self):
         self.client.force_login(self.staff)

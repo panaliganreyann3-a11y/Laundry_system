@@ -9,12 +9,17 @@ import os
 import qrcode
 
 from django.conf import settings
+from django.core.mail import send_mail
 from django.core.files.base import ContentFile
 
-from .models import ActivityLog, Order, ServiceInventoryUsage, StockMovement
+from .models import ActivityLog, Order, RewardTransaction, ServiceInventoryUsage, SiteSettings, StockMovement
 
 ITEMS_PER_PAGE = 20
 TRACKING_BASE_URL = 'http://127.0.0.1:8000/track/'
+POINTS_PER_COMPLETED_ORDER = 1
+POINTS_PER_REWARD = 10
+DISCOUNT_PER_REWARD = 50.0
+POINT_EXPIRY_DAYS = 183
 
 
 def local_day_range(day):
@@ -45,7 +50,7 @@ def staff_portal_required(view_func):
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
-            return redirect('staff_login')
+            return redirect('login')
         if is_customer_user(request.user):
             return redirect('customer_dashboard')
         return view_func(request, *args, **kwargs)
@@ -56,7 +61,7 @@ def customer_required(view_func):
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
-            return redirect('customer_login')
+            return redirect('login')
         if not is_customer_user(request.user):
             return redirect('admin_dashboard' if is_admin(request.user) else 'staff_dashboard')
         return view_func(request, *args, **kwargs)
@@ -82,6 +87,178 @@ def log_activity(actor, category, action, description, target=None):
         )
     except Exception:
         pass
+
+
+def expire_customer_points(customer):
+    if not customer.points_last_transaction_at or customer.loyalty_points <= 0:
+        return 0
+    expires_at = customer.points_last_transaction_at + timezone.timedelta(days=POINT_EXPIRY_DAYS)
+    if timezone.now() < expires_at:
+        return 0
+
+    expired_points = customer.loyalty_points
+    customer.loyalty_points = 0
+    customer.points_last_transaction_at = timezone.now()
+    customer.save(update_fields=['loyalty_points', 'points_last_transaction_at'])
+    RewardTransaction.objects.create(
+        customer=customer,
+        transaction_type=RewardTransaction.EXPIRE,
+        points=-expired_points,
+        description='Points expired after 6 months with no reward transaction.',
+    )
+    return expired_points
+
+
+def redeem_points_for_order(order, requested_points):
+    customer = order.customer
+    expire_customer_points(customer)
+    customer.refresh_from_db(fields=['loyalty_points', 'points_last_transaction_at'])
+
+    if order.payment_status == 'PAID' or order.amount_paid > 0:
+        return False, "Points can only be redeemed before payment is recorded."
+    if order.status == 'CANCELLED':
+        return False, "Cancelled orders cannot redeem points."
+
+    try:
+        requested_points = int(requested_points or 0)
+    except (TypeError, ValueError):
+        requested_points = 0
+    requested_points = max(0, requested_points)
+    requested_points = (requested_points // POINTS_PER_REWARD) * POINTS_PER_REWARD
+    if requested_points <= 0:
+        return False, "Redeem at least 10 points."
+    if requested_points > customer.loyalty_points:
+        return False, "Customer does not have enough points."
+
+    order.calculate_totals()
+    max_discountable = max(order.subtotal + order.pickup_fee + order.delivery_fee - order.discount, 0)
+    max_rewards_by_total = int(max_discountable // DISCOUNT_PER_REWARD)
+    max_points_by_total = max_rewards_by_total * POINTS_PER_REWARD
+    points_to_redeem = min(requested_points, max_points_by_total)
+    if points_to_redeem <= 0:
+        return False, "Order total is too low for a rewards discount."
+
+    discount_amount = (points_to_redeem // POINTS_PER_REWARD) * DISCOUNT_PER_REWARD
+    customer.loyalty_points -= points_to_redeem
+    customer.points_last_transaction_at = timezone.now()
+    customer.save(update_fields=['loyalty_points', 'points_last_transaction_at'])
+
+    order.points_redeemed += points_to_redeem
+    order.points_discount = round(order.points_discount + discount_amount, 2)
+    order.discount = round(order.discount + discount_amount, 2)
+    order.calculate_totals()
+    order.save(update_fields=[
+        'points_redeemed', 'points_discount', 'discount', 'laundry_fee',
+        'subtotal', 'total_amount', 'price', 'balance', 'overpayment',
+        'payment_status', 'updated_at',
+    ])
+
+    RewardTransaction.objects.create(
+        customer=customer,
+        order=order,
+        transaction_type=RewardTransaction.REDEEM,
+        points=-points_to_redeem,
+        discount_amount=discount_amount,
+        service_type=order.service_type,
+        description=f"Redeemed {points_to_redeem} points for Order #{order.id}.",
+    )
+    return True, f"Redeemed {points_to_redeem} points for a {discount_amount:.2f} discount."
+
+
+def award_points_for_order(order):
+    if (
+        order.points_awarded
+        or order.status != 'COMPLETED'
+        or order.payment_status != 'PAID'
+        or order.customer_id is None
+    ):
+        return False
+
+    customer = order.customer
+    expire_customer_points(customer)
+    customer.refresh_from_db(fields=['loyalty_points', 'points_last_transaction_at'])
+
+    customer.loyalty_points += POINTS_PER_COMPLETED_ORDER
+    customer.points_last_transaction_at = timezone.now()
+    customer.save(update_fields=['loyalty_points', 'points_last_transaction_at'])
+    order.points_awarded = True
+    order.save(update_fields=['points_awarded', 'updated_at'])
+    RewardTransaction.objects.create(
+        customer=customer,
+        order=order,
+        transaction_type=RewardTransaction.EARN,
+        points=POINTS_PER_COMPLETED_ORDER,
+        service_type=order.service_type,
+        description=f"Earned points from completed paid Order #{order.id}.",
+    )
+    return True
+
+
+def notify_customer_order_update(order):
+    customer = order.customer
+    recipient = (customer.email or '').strip()
+    if not recipient:
+        return False
+
+    site_name = SiteSettings.load().site_name
+    tracking_url = f"{TRACKING_BASE_URL}?tracking_number={order.tracking_number}"
+    subject = None
+    body = None
+
+    if order.order_type == 'PICKUP_DELIVERY' and order.status == 'PICKUP_CONFIRMED':
+        subject = f"{site_name}: We are going to pick up your laundry"
+        body = (
+            f"Hi {customer.name},\n\n"
+            f"Your pickup request for order #{order.id} has been accepted. "
+            f"Our staff is going to pick up your laundry.\n\n"
+            f"You can track it here: {tracking_url}\n\n"
+            f"Thank you,\n{site_name}"
+        )
+    elif order.status == 'PROCESSING':
+        subject = f"{site_name}: Your laundry is being processed"
+        body = (
+            f"Hi {customer.name},\n\n"
+            f"Your laundry order #{order.id} is now being washed and processed.\n\n"
+            f"You can track it here: {tracking_url}\n\n"
+            f"Thank you,\n{site_name}"
+        )
+    elif order.order_type == 'WALK_IN' and order.status == 'READY_FOR_PICKUP':
+        subject = f"{site_name}: Your laundry is ready for pickup"
+        body = (
+            f"Hi {customer.name},\n\n"
+            f"Good news! Your walk-in laundry order #{order.id} is done and ready for pickup.\n\n"
+            f"You can track it here: {tracking_url}\n\n"
+            f"Thank you,\n{site_name}"
+        )
+    elif order.order_type == 'PICKUP_DELIVERY' and order.status == 'READY_FOR_DELIVERY':
+        subject = f"{site_name}: Your laundry is done processing"
+        body = (
+            f"Hi {customer.name},\n\n"
+            f"Good news! Your laundry order #{order.id} is done washing and processing. "
+            f"We are preparing it for delivery.\n\n"
+            f"You can track it here: {tracking_url}\n\n"
+            f"Thank you,\n{site_name}"
+        )
+    elif order.order_type == 'PICKUP_DELIVERY' and order.status == 'OUT_FOR_DELIVERY':
+        subject = f"{site_name}: Your laundry is out for delivery"
+        body = (
+            f"Hi {customer.name},\n\n"
+            f"Your laundry order #{order.id} is now out for delivery.\n\n"
+            f"You can track it here: {tracking_url}\n\n"
+            f"Thank you,\n{site_name}"
+        )
+
+    if not subject or not body:
+        return False
+
+    send_mail(
+        subject,
+        body,
+        settings.DEFAULT_FROM_EMAIL,
+        [recipient],
+        fail_silently=True,
+    )
+    return True
 
 
 def deduct_inventory_for_order(order, user):
@@ -149,7 +326,7 @@ def advance_order_status(order, user=None):
         ok, _ = deduct_inventory_for_order(order, user)
         if not ok:
             return False
-    if next_status == 'OUT_FOR_DELIVERY' and order.payment_status != 'PAID':
+    if next_status == 'OUT_FOR_DELIVERY' and order.payment_method != 'CASH_AFTER_DELIVERY' and order.payment_status != 'PAID':
         return False
     if next_status == 'COMPLETED' and order.payment_status != 'PAID':
         return False
@@ -162,10 +339,9 @@ def advance_order_status(order, user=None):
         order.claimed_at = now
     elif next_status == 'DELIVERED':
         order.delivered_at = now
-        if order.payment_status == 'PAID':
-            order.status = 'COMPLETED'
-            order.claimed_at = now
     order.save()
+    notify_customer_order_update(order)
+    award_points_for_order(order)
     return True
 
 
@@ -220,11 +396,8 @@ def refresh_order_payment_from_verified_records(order):
     order.amount_paid = round(paid, 2)
     order.update_payment_status_from_amount()
     update_fields = ['amount_paid', 'balance', 'overpayment', 'payment_status', 'paid_at', 'updated_at']
-    if order.status == 'DELIVERED' and order.payment_status == 'PAID':
-        order.status = 'COMPLETED'
-        order.claimed_at = timezone.now()
-        update_fields += ['status', 'claimed_at']
     order.save(update_fields=update_fields)
+    award_points_for_order(order)
 
 
 # ── Auth ──────────────────────────────────

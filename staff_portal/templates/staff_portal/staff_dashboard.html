@@ -135,30 +135,6 @@
                 <i class="bi {% if order.status == 'PENDING_PICKUP' and order.order_type == 'PICKUP_DELIVERY' %}bi-eye{% else %}bi-pencil{% endif %}"></i>
               </a>
             </div>
-            {% if order.status == 'PENDING_PICKUP' and order.order_type == 'PICKUP_DELIVERY' %}
-            <div class="modal fade" id="declinePickupWorkflow{{ order.id }}" tabindex="-1">
-              <div class="modal-dialog">
-                <div class="modal-content">
-                  <form method="post" action="{% url 'decline_pickup_request' order.id %}">
-                    {% csrf_token %}
-                    <div class="modal-header">
-                      <h5 class="modal-title">Decline Pickup #{{ order.id }}</h5>
-                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                      <label class="form-label fw-semibold">Comment <span class="text-muted fw-normal">(optional)</span></label>
-                      <textarea name="decline_reason" class="form-control" rows="3"
-                                placeholder="Add a note for this declined request"></textarea>
-                    </div>
-                    <div class="modal-footer">
-                      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                      <button type="submit" class="btn btn-danger">Decline Request</button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
-            {% endif %}
           </div>
         </div>
         {% empty %}
@@ -261,27 +237,6 @@
                   <i class="bi {% if o.status == 'PENDING_PICKUP' and o.order_type == 'PICKUP_DELIVERY' %}bi-eye{% else %}bi-pencil{% endif %}"></i>
                 </a>
               </div>
-              {% if o.status == 'PENDING_PICKUP' and o.order_type == 'PICKUP_DELIVERY' %}
-                <div class="modal fade" id="declinePickup{{ o.id }}" tabindex="-1">
-                  <div class="modal-dialog">
-                    <div class="modal-content">
-                      <div class="modal-header">
-                        <h5 class="modal-title">Decline Pickup #{{ o.id }}</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                      </div>
-                      <div class="modal-body">
-                        <label class="form-label fw-semibold">Comment <span class="text-muted fw-normal">(optional)</span></label>
-                        <textarea name="decline_reason" form="declinePickupForm{{ o.id }}" class="form-control" rows="3"
-                                  placeholder="Add a note for this declined request"></textarea>
-                      </div>
-                      <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" form="declinePickupForm{{ o.id }}" class="btn btn-danger">Decline Request</button>
-                      </div>
-                  </div>
-                </div>
-              </div>
-              {% endif %}
             </td>
           </tr>
           {% empty %}
@@ -324,4 +279,61 @@
   {% endif %}
 {% endfor %}
 
+{% endblock %}
+
+{% block page_modals %}
+  {{ block.super }}
+
+  {% for col in workflow_columns %}
+    {% for order in col.orders %}
+      {% if order.status == 'PENDING_PICKUP' and order.order_type == 'PICKUP_DELIVERY' %}
+      <div class="modal fade" id="declinePickupWorkflow{{ order.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <form method="post" action="{% url 'decline_pickup_request' order.id %}">
+              {% csrf_token %}
+              <div class="modal-header">
+                <h5 class="modal-title">Decline Pickup #{{ order.id }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <label class="form-label fw-semibold">Comment <span class="text-muted fw-normal">(optional)</span></label>
+                <textarea name="decline_reason" class="form-control" rows="3"
+                          placeholder="Add a note for this declined request"></textarea>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-danger">Decline Request</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+
+  {% for o in orders %}
+    {% if o.status == 'PENDING_PICKUP' and o.order_type == 'PICKUP_DELIVERY' %}
+    <div class="modal fade" id="declinePickup{{ o.id }}" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Decline Pickup #{{ o.id }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <label class="form-label fw-semibold">Comment <span class="text-muted fw-normal">(optional)</span></label>
+            <textarea name="decline_reason" form="declinePickupForm{{ o.id }}" class="form-control" rows="3"
+                      placeholder="Add a note for this declined request"></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" form="declinePickupForm{{ o.id }}" class="btn btn-danger">Decline Request</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  {% endfor %}
 {% endblock %}

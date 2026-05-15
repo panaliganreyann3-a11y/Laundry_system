@@ -10,6 +10,7 @@ urlpatterns = [
     path('pricing/', staff_required(views.pricing_settings), name='pricing_settings'),
     path('branding/', staff_required(views.branding_settings), name='branding_settings'),
     path('reports/', staff_required(views.reports), name='reports'),
+    path('rewards/', staff_required(views.rewards_history), name='rewards_history'),
     path('activity-log/', staff_required(views.activity_log), name='activity_log'),
     path('export-csv/', staff_required(views.export_csv), name='export_csv'),
     path('accounts/', staff_required(views.account_list), name='account_list'),

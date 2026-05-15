@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.contrib.auth import authenticate, login as auth_login
+from django.contrib.auth import login as auth_login
 from django.contrib.auth.models import Group, User
 from django.db import transaction
 from django.db.models import Q
@@ -8,13 +8,15 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from laundry.models import Customer, Order, Payment, PricingConfig
-from laundry.validators import is_allowed_email, is_strong_customer_password, is_valid_contact
+from laundry.validators import is_gmail_email, is_strong_customer_password, is_valid_contact
 from laundry.views import (
     customer_required,
+    expire_customer_points,
     generate_qr_for_order,
     is_admin,
     is_customer_user,
     orders_created_on,
+    redeem_points_for_order,
 )
 
 
@@ -39,8 +41,8 @@ def customer_register(request):
         if not is_valid_contact(contact):
             messages.error(request, "Contact number must be exactly 11 digits and start with 09.")
             return render(request, 'customers/customer_register.html', {'form_data': form_data})
-        if not is_allowed_email(email):
-            messages.error(request, "Enter a valid non-disposable email address.")
+        if not is_gmail_email(email):
+            messages.error(request, "Customer accounts must use a valid Gmail address.")
             return render(request, 'customers/customer_register.html', {'form_data': form_data})
         if password1 != password2:
             messages.error(request, "Passwords do not match.")
@@ -99,29 +101,14 @@ def customer_register(request):
 
 
 def customer_login(request):
-    if request.user.is_authenticated:
-        if is_customer_user(request.user):
-            return redirect('customer_dashboard')
-        return redirect('admin_dashboard' if is_admin(request.user) else 'staff_dashboard')
-
-    error = None
-    if request.method == 'POST':
-        email = request.POST.get('email', '').strip().lower()
-        password = request.POST.get('password', '')
-        user = authenticate(request, username=email, password=password)
-        if user and is_customer_user(user):
-            auth_login(request, user)
-            return redirect('customer_dashboard')
-        if user:
-            error = "Please use the staff or admin login page."
-        else:
-            error = "Invalid email or password."
-    return render(request, 'customers/customer_login.html', {'error': error})
+    return redirect('login')
 
 
 @customer_required
 def customer_dashboard(request):
     customer = request.user.customer_profile
+    expire_customer_points(customer)
+    customer.refresh_from_db(fields=['loyalty_points', 'points_last_transaction_at'])
     orders = customer.orders.order_by('-created_at')[:10]
     active_orders = customer.orders.exclude(status__in=['COMPLETED', 'CANCELLED']).count()
     return render(request, 'customers/customer_dashboard.html', {
@@ -144,12 +131,28 @@ def customer_order_history(request):
 @customer_required
 def customer_order_detail(request, order_id):
     customer = request.user.customer_profile
+    expire_customer_points(customer)
+    customer.refresh_from_db(fields=['loyalty_points', 'points_last_transaction_at'])
     order = get_object_or_404(customer.orders, id=order_id)
     return render(request, 'customers/customer_order_detail.html', {
         'customer': customer,
         'order': order,
         'config': PricingConfig.objects.first(),
     })
+
+
+@customer_required
+def customer_redeem_points(request, order_id):
+    customer = request.user.customer_profile
+    order = get_object_or_404(customer.orders, id=order_id)
+    if request.method != 'POST':
+        return redirect('customer_order_detail', order_id=order.id)
+    ok, message = redeem_points_for_order(order, request.POST.get('points_to_redeem'))
+    if ok:
+        messages.success(request, message)
+    else:
+        messages.error(request, message)
+    return redirect('customer_order_detail', order_id=order.id)
 
 
 @customer_required
@@ -248,8 +251,8 @@ def customer_profile(request):
         if not is_valid_contact(contact):
             messages.error(request, "Contact number must be exactly 11 digits and start with 09.")
             return redirect('customer_profile')
-        if not is_allowed_email(email):
-            messages.error(request, "Enter a valid non-disposable email address.")
+        if not is_gmail_email(email):
+            messages.error(request, "Customer accounts must use a valid Gmail address.")
             return redirect('customer_profile')
 
         email_taken = User.objects.filter(username__iexact=email).exclude(id=request.user.id).exists()

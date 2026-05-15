@@ -23,4 +23,4 @@ def inventory_quantity(value, unit):
         return value
     if unit == 'ml':
         quantity = quantity / 1000
-    return f"{quantity:g}"
+    return f"{quantity:,.0f}"

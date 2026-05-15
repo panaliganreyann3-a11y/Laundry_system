@@ -20,13 +20,14 @@ from laundry.models import (
     InventoryItem,
     Order,
     PricingConfig,
+    RewardTransaction,
     ServiceInventoryUsage,
     SiteSettings,
     StockMovement,
     ActivityLog,
     UserProfile,
 )
-from laundry.validators import is_allowed_email, is_valid_contact
+from laundry.validators import is_gmail_email, is_valid_contact
 from laundry.views import (
     ITEMS_PER_PAGE,
     is_admin,
@@ -154,6 +155,41 @@ def admin_dashboard(request):
         'week_orders': json.dumps([cnt_map.get(d, 0) for d in last_7]),
         'service_labels': json.dumps([s['service_type'] for s in service_counts]),
         'service_data': json.dumps([s['c'] for s in service_counts]),
+    })
+
+
+@login_required
+def rewards_history(request):
+    if not is_admin(request.user):
+        return HttpResponseForbidden()
+
+    transactions = RewardTransaction.objects.select_related('customer', 'order').all()
+    search = request.GET.get('search', '').strip()
+    if search:
+        reward_query = (
+            Q(customer__name__icontains=search)
+            | Q(customer__email__icontains=search)
+        )
+        if search.isdigit():
+            reward_query |= Q(order_id=int(search))
+        transactions = transactions.filter(reward_query)
+    transaction_type = request.GET.get('type', '').strip()
+    if transaction_type:
+        transactions = transactions.filter(transaction_type=transaction_type)
+
+    paginator = Paginator(transactions, ITEMS_PER_PAGE)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+    return render(request, 'admin_portal/rewards_history.html', {
+        'transactions': page_obj,
+        'page_obj': page_obj,
+        'search': search,
+        'transaction_type': transaction_type,
+        'transaction_types': RewardTransaction.TYPE_CHOICES,
+        'total_points': Customer.objects.aggregate(t=Sum('loyalty_points'))['t'] or 0,
+        'redeemed_discount': RewardTransaction.objects.filter(
+            transaction_type=RewardTransaction.REDEEM,
+        ).aggregate(t=Sum('discount_amount'))['t'] or 0,
+        'is_admin': True,
     })
 
 
@@ -443,8 +479,8 @@ def add_account(request):
             if not is_valid_contact(contact):
                 messages.error(request, "Contact number must be exactly 11 digits and start with 09.")
                 return redirect('add_account')
-            if not is_allowed_email(email):
-                messages.error(request, "Enter a valid non-disposable email address.")
+            if not is_gmail_email(email):
+                messages.error(request, "Customer accounts must use a valid Gmail address.")
                 return redirect('add_account')
             existing_customer = Customer.objects.filter(Q(email__iexact=email) | Q(contact=contact)).first()
             if existing_customer and existing_customer.user_id:
@@ -626,13 +662,15 @@ def add_inventory_item(request):
         except ValueError:
             messages.error(request, "Invalid numeric values.")
             return render(request, 'laundry/inventory.html', {
-                'section': 'add', 'categories': categories, 'is_admin': True
+                'section': 'add', 'categories': categories,
+                'unit_choices': InventoryItem.UNIT_CHOICES, 'is_admin': True
             })
 
         if not name:
             messages.error(request, "Item name is required.")
             return render(request, 'laundry/inventory.html', {
-                'section': 'add', 'categories': categories, 'is_admin': True
+                'section': 'add', 'categories': categories,
+                'unit_choices': InventoryItem.UNIT_CHOICES, 'is_admin': True
             })
 
         if new_cat:

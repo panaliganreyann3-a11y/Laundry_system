@@ -375,7 +375,16 @@
                 <input type="number" step="0.01" min="0.01" name="quantity" id="restockQty"
                        class="form-control form-control-lg" placeholder="0"
                        oninput="updateRestockPreview()" required autofocus>
-                <span class="input-group-text fw-semibold">{{ item.unit }}</span>
+                {% if item.unit == 'ml' %}
+                <select name="quantity_unit" id="restockUnit" class="form-select fw-semibold" style="max-width:90px"
+                        onchange="updateRestockPreview()">
+                  <option value="L">L</option>
+                  <option value="ml">ml</option>
+                </select>
+                {% else %}
+                <input type="hidden" name="quantity_unit" value="{{ item.unit }}">
+                <span class="input-group-text fw-semibold">{{ item.unit|inventory_unit }}</span>
+                {% endif %}
               </div>
             </div>
 

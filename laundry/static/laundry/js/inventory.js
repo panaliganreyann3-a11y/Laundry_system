@@ -1,12 +1,19 @@
 function displayInventoryQuantity(value, unit) {
-  return unit === 'ml' ? Math.round((value / 1000) * 10000) / 10000 : value;
+  const displayValue = unit === 'ml' ? value / 1000 : value;
+  return Math.round(displayValue).toLocaleString();
+}
+
+function restockQuantityInStoredUnit(qty, storedUnit) {
+  const selectedUnit = document.getElementById('restockUnit')?.value || storedUnit;
+  if (storedUnit === 'ml' && selectedUnit === 'L') return qty * 1000;
+  return qty;
 }
 
 function updateRestockPreview() {
   const current = parseFloat(document.getElementById('inventoryStockData')?.dataset.currentStock || '0');
   const inputUnit = document.getElementById('inventoryStockData')?.dataset.inputUnit || '';
   const displayUnit = document.getElementById('inventoryStockData')?.dataset.displayUnit || inputUnit;
-  const qty = parseFloat(document.getElementById('restockQty')?.value) || 0;
+  const qty = restockQuantityInStoredUnit(parseFloat(document.getElementById('restockQty')?.value) || 0, inputUnit);
   const newStock = Math.round((current + qty) * 10000) / 10000;
   const preview = document.getElementById('restockPreview');
   if (preview) preview.textContent = displayInventoryQuantity(newStock, inputUnit) + ' ' + displayUnit;

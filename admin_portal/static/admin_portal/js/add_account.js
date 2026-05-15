@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const contactInput = document.getElementById('contactInput');
   const addressInput = document.getElementById('addressInput');
   const roleHelp = document.getElementById('roleHelp');
+  const customerEmailHelp = document.querySelector('.customer-email-help');
 
   function syncRoleFields() {
     const isCustomer = roleSelect.value === 'customer';
@@ -18,6 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
     usernameInput.required = !isCustomer;
     usernameInput.disabled = isCustomer;
     emailInput.required = isCustomer;
+    emailInput.placeholder = isCustomer ? 'name@gmail.com' : '';
+    customerEmailHelp?.classList.toggle('d-none', !isCustomer);
     nameInput.required = isCustomer;
     nameInput.disabled = !isCustomer;
     contactInput.required = isCustomer;
@@ -25,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     addressInput.required = isCustomer;
     addressInput.disabled = !isCustomer;
     roleHelp.textContent = isCustomer
-      ? 'Customer accounts use their email as the login and are linked to a customer profile.'
+      ? 'Customer accounts use their Gmail address as the login and are linked to a customer profile.'
       : 'Staff accounts can access staff workflows. Admin accounts can manage reports, pricing, inventory rules, and accounts.';
   }
 

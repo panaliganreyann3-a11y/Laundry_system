@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Customer Portal{% endblock %} - Smart Laundry</title>
+  <title>{% block title %}Customer Portal{% endblock %} - Spin Clean Laundry Hub</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
   <link href="{% static 'customers/css/customer_base.css' %}" rel="stylesheet">
@@ -13,7 +13,7 @@
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark portal-nav">
   <div class="container-fluid px-3">
-    <a class="navbar-brand fw-bold" href="{% url 'customer_dashboard' %}">Smart Laundry</a>
+    <a class="navbar-brand fw-bold" href="{% url 'customer_dashboard' %}">Spin Clean Laundry Hub</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#customerMenu">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -26,7 +26,7 @@
       </div>
       <form method="post" action="{% url 'logout' %}" class="d-flex">
         {% csrf_token %}
-        <input type="hidden" name="next" value="{% url 'customer_login' %}">
+        <input type="hidden" name="next" value="{% url 'login' %}">
         <button class="btn btn-outline-light btn-sm">Logout</button>
       </form>
     </div>

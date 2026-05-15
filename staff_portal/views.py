@@ -23,10 +23,13 @@ from laundry.views import (
     TRACKING_BASE_URL,
     advance_order_status,
     deduct_inventory_for_order,
+    expire_customer_points,
     generate_qr_for_order,
     is_admin,
     log_activity,
+    notify_customer_order_update,
     orders_created_on,
+    redeem_points_for_order,
     refresh_order_payment_from_verified_records,
     staff_portal_required,
 )
@@ -297,6 +300,8 @@ def edit_customer(request, customer_id):
 @login_required
 def add_order(request):
     customers = Customer.objects.all().order_by('name')
+    for customer in customers:
+        expire_customer_points(customer)
     config = PricingConfig.objects.first()
     staff_users = staff_assignee_queryset()
 
@@ -306,6 +311,7 @@ def add_order(request):
         is_priority = 'priority' in request.POST
         payment_method = request.POST.get('payment_method', 'CASH_AFTER_DELIVERY')
         amount_paid_raw = request.POST.get('amount_paid', '').strip()
+        points_to_redeem = request.POST.get('points_to_redeem', '').strip()
         special_instructions = request.POST.get('special_instructions', '').strip() or None
         assigned_to_id = request.POST.get('assigned_to') or None
         due_date_raw = request.POST.get('due_date', '').strip()
@@ -371,6 +377,19 @@ def add_order(request):
             special_instructions=special_instructions,
         )
         order.calculate_totals()
+        if points_to_redeem:
+            ok, reward_message = redeem_points_for_order(order, points_to_redeem)
+            if ok:
+                messages.success(request, reward_message)
+                order.refresh_from_db()
+            else:
+                messages.error(request, reward_message)
+                order.delete()
+                return render(request, 'staff_portal/add_order.html', {
+                    'customers': customers, 'config': config,
+                    'staff_users': staff_users, 'service_choices': Order.SERVICE_CHOICES,
+                    'payment_methods': Order.PAYMENT_METHOD_CHOICES, 'is_admin': is_admin(request.user)
+                })
         if amount_paid > 0:
             Payment.objects.create(
                 order=order,
@@ -421,7 +440,7 @@ def update_status(request, order_id):
     if next_status == 'WEIGHED' and order.weight <= 0:
         messages.error(request, "Staff must enter the actual weight before total amount can be calculated.")
         return redirect('edit_order', order_id=order.id)
-    if next_status == 'OUT_FOR_DELIVERY' and order.payment_status != 'PAID':
+    if next_status == 'OUT_FOR_DELIVERY' and order.payment_method != 'CASH_AFTER_DELIVERY' and order.payment_status != 'PAID':
         messages.error(request, "Payment must be fully paid before the order can go out for delivery.")
         return redirect(request.META.get('HTTP_REFERER', 'staff_dashboard'))
     if next_status == 'PROCESSING' and order.payment_method == 'GCASH' and order.payment_status != 'PAID':
@@ -433,7 +452,10 @@ def update_status(request, order_id):
             messages.error(request, message)
             return redirect(request.META.get('HTTP_REFERER', 'staff_dashboard'))
     if next_status == 'COMPLETED' and order.payment_status != 'PAID':
-        messages.error(request, "Payment must be fully paid before completing the order.")
+        if order.payment_method == 'CASH_AFTER_DELIVERY':
+            messages.error(request, "Record the customer's cash payment before confirming delivery.")
+        else:
+            messages.error(request, "Payment must be fully paid before completing the order.")
         return redirect(request.META.get('HTTP_REFERER', 'staff_dashboard'))
     old_status = order.status
     if advance_order_status(order, request.user):
@@ -463,6 +485,7 @@ def accept_pickup_request(request, order_id):
     order.decline_reason = None
     order.declined_at = None
     order.save(update_fields=['status', 'assigned_to', 'decline_reason', 'declined_at', 'updated_at'])
+    notify_customer_order_update(order)
     log_activity(
         request.user,
         'ORDER',
@@ -515,12 +538,20 @@ def bulk_update_status(request):
             messages.error(request, "No orders selected.")
         elif action == 'advance':
             count = 0
+            unpaid_completion_count = 0
             for oid in order_ids:
                 order = Order.objects.filter(id=oid).first()
                 old_status = order.status if order else None
                 if order and order.payment_method == 'GCASH':
                     refresh_order_payment_from_verified_records(order)
                     order.refresh_from_db()
+                if (
+                    order
+                    and order.get_next_status() == 'COMPLETED'
+                    and order.payment_status != 'PAID'
+                ):
+                    unpaid_completion_count += 1
+                    continue
                 if order and order.status != 'PENDING_PICKUP' and advance_order_status(order, request.user):
                     log_activity(
                         request.user,
@@ -530,7 +561,13 @@ def bulk_update_status(request):
                         order,
                     )
                     count += 1
-            messages.success(request, f"{count} order(s) advanced.")
+            if unpaid_completion_count:
+                messages.warning(
+                    request,
+                    f"{count} order(s) advanced. {unpaid_completion_count} delivered order(s) need payment before confirmation.",
+                )
+            else:
+                messages.success(request, f"{count} order(s) advanced.")
         elif action == 'mark_paid':
             count = 0
             for oid in order_ids:
@@ -681,6 +718,8 @@ def confirm_cod_payment(request, order_id):
 @login_required
 def customer_detail(request, customer_id):
     customer = get_object_or_404(Customer, id=customer_id)
+    expire_customer_points(customer)
+    customer.refresh_from_db(fields=['loyalty_points', 'points_last_transaction_at'])
     orders = customer.orders.order_by('-created_at')
     return render(request, 'staff_portal/customer_detail.html', {
         'customer': customer,
@@ -775,6 +814,7 @@ def edit_order(request, order_id):
         if order.is_priority and order.extra_fee <= 0:
             order.extra_fee = config.rush_surcharge if config else 50.0
         order.discount = float(request.POST.get('discount') or 0)
+        order.discount = max(order.discount, order.points_discount)
         if order.weight > 0:
             order.calculate_totals()
             if order.status in ['RECEIVED_AT_SHOP', 'PICKED_UP', 'PICKUP_CONFIRMED']:
@@ -782,6 +822,15 @@ def edit_order(request, order_id):
             order.update_balance()
 
         order.save()
+        points_to_redeem = request.POST.get('points_to_redeem', '').strip()
+        if points_to_redeem:
+            ok, reward_message = redeem_points_for_order(order, points_to_redeem)
+            if ok:
+                messages.success(request, reward_message)
+                order.refresh_from_db()
+            else:
+                messages.error(request, reward_message)
+                return redirect('edit_order', order_id=order.id)
         log_activity(
             request.user,
             'ORDER',
@@ -867,9 +916,21 @@ def restock_item(request, item_id):
             return render(request, 'laundry/inventory.html', {
                 'section': 'restock', 'item': item, 'is_admin': is_admin(request.user)
             })
+        quantity_unit = request.POST.get('quantity_unit', item.unit)
+        if item.unit == 'ml' and quantity_unit == 'L':
+            quantity = quantity * 1000
+        elif quantity_unit != item.unit:
+            messages.error(request, "Invalid unit for this item.")
+            return render(request, 'laundry/inventory.html', {
+                'section': 'restock', 'item': item, 'is_admin': is_admin(request.user)
+            })
         notes = request.POST.get('notes', '').strip()
         item.current_stock = round(item.current_stock + quantity, 4)
         item.save(update_fields=['current_stock'])
+        if item.unit == 'ml':
+            display_stock = f"{item.current_stock / 1000:.0f} L"
+        else:
+            display_stock = f"{item.current_stock:.0f} {item.unit}"
         StockMovement.objects.create(
             item=item, movement_type='RESTOCK', quantity=quantity,
             notes=notes or f"Restocked by {request.user.username}",
@@ -882,7 +943,7 @@ def restock_item(request, item_id):
             f"Restocked {quantity} {item.unit} of {item.name}.",
             item,
         )
-        messages.success(request, f"+{quantity} {item.unit} added to '{item.name}'. New stock: {item.current_stock}")
+        messages.success(request, f"Stock added to '{item.name}'. New stock: {display_stock}.")
         return redirect('inventory_detail', item_id=item.id)
     return render(request, 'laundry/inventory.html', {
         'section': 'restock', 'item': item, 'is_admin': is_admin(request.user)

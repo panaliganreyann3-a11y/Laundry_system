@@ -24,7 +24,7 @@ class PricingConfig(models.Model):
 
 
 class SiteSettings(models.Model):
-    site_name = models.CharField(max_length=120, default='Spin King Laundry Hub')
+    site_name = models.CharField(max_length=120, default='Spin Clean Laundry Hub')
     subtitle = models.CharField(max_length=160, default='Laundry Management System')
     logo = models.ImageField(upload_to='branding/', blank=True, null=True)
     footer_description = models.TextField(default="Keeping Bayawan's clothes fresh since day one. Fast, clean, and reliable laundry service.")
@@ -72,6 +72,8 @@ class Customer(models.Model):
     notes = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=12, choices=STATUS_CHOICES, default='NEW')
     is_walk_in = models.BooleanField(default=False)
+    loyalty_points = models.PositiveIntegerField(default=0)
+    points_last_transaction_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
@@ -90,6 +92,10 @@ class Customer(models.Model):
     def total_spent(self):
         from django.db.models import Sum
         return self.orders.aggregate(t=Sum('total_amount'))['t'] or 0
+
+    @property
+    def redeemable_discount(self):
+        return (self.loyalty_points // 10) * 50
 
 
 class Order(models.Model):
@@ -155,6 +161,9 @@ class Order(models.Model):
     delivery_fee = models.FloatField(default=0.0)
     extra_fee = models.FloatField(default=0.0)
     discount = models.FloatField(default=0.0)
+    points_redeemed = models.PositiveIntegerField(default=0)
+    points_discount = models.FloatField(default=0.0)
+    points_awarded = models.BooleanField(default=False)
     laundry_fee = models.FloatField(default=0.0)
     subtotal = models.FloatField(default=0.0)
     total_amount = models.FloatField(default=0.0)
@@ -318,6 +327,38 @@ class Order(models.Model):
         self.status = 'CANCELLED'
         self.payment_status = 'CANCELLED'
         self.payments.filter(status='PENDING').update(status='CANCELLED')
+
+
+class RewardTransaction(models.Model):
+    EARN = 'EARN'
+    REDEEM = 'REDEEM'
+    EXPIRE = 'EXPIRE'
+    TYPE_CHOICES = [
+        (EARN, 'Earned'),
+        (REDEEM, 'Redeemed'),
+        (EXPIRE, 'Expired'),
+    ]
+
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='reward_transactions')
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reward_transactions',
+    )
+    transaction_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    points = models.IntegerField()
+    discount_amount = models.FloatField(default=0.0)
+    service_type = models.CharField(max_length=20, blank=True, null=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.customer.name} {self.get_transaction_type_display()} {self.points} points"
 
 
 class Payment(models.Model):

@@ -1,24 +1,27 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Lato:wght@400;700&family=Raleway:wght@600;700;800&display=swap');
 
 :root {
-  --warm-white:#FAFBFC;
-  --cool-linen:#F0F4F8;
-  --ocean:#1A5F8A;
-  --aqua:#2BAACC;
-  --mint:#3ECFB2;
-  --brass:#C9943A;
-  --charcoal:#1C2B3A;
-  --slate:#5A7184;
-  --navy:#0D2137;
-  --shadow:0 8px 32px rgba(26,95,138,.10);
+  --page:#F3F8F8;
+  --panel:#FFFFFF;
+  --navy:#102D43;
+  --navy-deep:#0B2438;
+  --teal:#39B9B7;
+  --teal-soft:#DDF5F3;
+  --gold:#D9AA4B;
+  --blue:#3A709D;
+  --ink:#1F2B37;
+  --muted:#6A7A89;
+  --line:#D8E6EA;
+  --shadow:0 20px 50px rgba(16,45,67,.12);
 }
 
 body {
   min-height:100vh;
   background:
-    radial-gradient(circle at 78% 12%, rgba(62,207,178,.18), transparent 26%),
-    linear-gradient(135deg,var(--warm-white),var(--cool-linen));
-  color:var(--charcoal);
+    radial-gradient(circle at 88% 6%, rgba(57,185,183,.24), transparent 20%),
+    radial-gradient(circle at 12% 86%, rgba(58,112,157,.12), transparent 18%),
+    linear-gradient(135deg,#F8FBFC,var(--page));
+  color:var(--ink);
   font-family:'Lato',system-ui,sans-serif;
   line-height:1.65;
 }
@@ -28,7 +31,7 @@ body::before {
   inset:0;
   pointer-events:none;
   opacity:.03;
-  background-image:radial-gradient(#0D2137 .7px, transparent .7px);
+  background-image:radial-gradient(var(--navy) .7px, transparent .7px);
   background-size:7px 7px;
   z-index:9999;
 }
@@ -37,9 +40,9 @@ h1,h2,h3,h4,h5,h6,.navbar-brand { font-family:'Raleway',system-ui,sans-serif; le
   position:sticky;
   top:0;
   z-index:20;
-  background:rgba(13,33,55,.9);
+  background:linear-gradient(180deg,var(--navy-deep),var(--navy));
   backdrop-filter:blur(12px);
-  box-shadow:0 12px 28px rgba(13,33,55,.16);
+  box-shadow:0 12px 28px rgba(16,45,67,.20);
 }
 .portal-nav .navbar-brand { color:#fff; font-weight:800; }
 .portal-nav .navbar-brand::after {
@@ -48,20 +51,33 @@ h1,h2,h3,h4,h5,h6,.navbar-brand { font-family:'Raleway',system-ui,sans-serif; le
   width:48px;
   height:1px;
   margin-top:4px;
-  background:linear-gradient(90deg,var(--brass),var(--mint));
+  background:linear-gradient(90deg,var(--blue),var(--teal));
 }
-.portal-nav .nav-link { color:rgba(255,255,255,.72); font-weight:700; }
+.portal-nav .nav-link { color:rgba(255,255,255,.76); font-weight:700; }
 .portal-nav .nav-link:hover { color:#fff; }
 .portal-shell { max-width:1280px; margin:0 auto; padding:34px 24px 80px; }
 .card,.stat {
-  border:1px solid rgba(255,255,255,.82);
+  border:1px solid rgba(216,230,234,.9);
   border-radius:16px;
-  background:rgba(255,255,255,.76);
+  background:rgba(255,255,255,.92);
   backdrop-filter:blur(12px);
   box-shadow:var(--shadow);
 }
 .card { overflow:hidden; }
-.card-header { border-color:rgba(26,95,138,.12); padding:16px 20px; }
+.card-header { border-color:var(--line); padding:16px 20px; }
+.card-header strong,
+h3.fw-bold {
+  position:relative;
+}
+.card-header strong::after,
+h3.fw-bold::after {
+  content:"";
+  display:block;
+  width:68px;
+  height:1px;
+  margin-top:8px;
+  background:linear-gradient(90deg,var(--blue),var(--teal));
+}
 .stat { padding:20px; min-height:112px; position:relative; overflow:hidden; }
 .stat::after {
   content:"";
@@ -71,21 +87,24 @@ h1,h2,h3,h4,h5,h6,.navbar-brand { font-family:'Raleway',system-ui,sans-serif; le
   right:-28px;
   bottom:-38px;
   border-radius:50%;
-  border:1px solid rgba(43,170,204,.24);
+  border:1px solid rgba(57,185,183,.28);
 }
 .stat .fs-3 { font-family:'DM Mono',monospace; font-weight:500; }
 .btn { border-radius:999px; font-weight:700; }
 .btn-primary {
-  --bs-btn-bg:var(--brass);
-  --bs-btn-border-color:var(--brass);
-  --bs-btn-hover-bg:#b48231;
-  --bs-btn-hover-border-color:#b48231;
-  box-shadow:0 10px 20px rgba(201,148,58,.22);
+  --bs-btn-bg:var(--teal);
+  --bs-btn-border-color:var(--teal);
+  --bs-btn-hover-bg:#2FA5A3;
+  --bs-btn-hover-border-color:#2FA5A3;
+  --bs-btn-color:var(--navy-deep);
+  --bs-btn-hover-color:var(--navy-deep);
+  box-shadow:0 10px 20px rgba(57,185,183,.22);
 }
-.btn-outline-primary { --bs-btn-color:var(--ocean); --bs-btn-border-color:rgba(26,95,138,.35); --bs-btn-hover-bg:var(--ocean); --bs-btn-hover-border-color:var(--ocean); }
-.text-primary { color:var(--ocean)!important; }
+.btn-outline-primary { --bs-btn-color:var(--blue); --bs-btn-border-color:rgba(58,112,157,.35); --bs-btn-hover-bg:var(--blue); --bs-btn-hover-border-color:var(--blue); }
+.text-primary { color:var(--blue)!important; }
 .text-success { color:#15856f!important; }
-.text-muted { color:var(--slate)!important; }
+.text-warning { color:var(--gold)!important; }
+.text-muted { color:var(--muted)!important; }
 .badge {
   border-radius:999px;
   font-family:'DM Mono',monospace;
@@ -98,19 +117,18 @@ h1,h2,h3,h4,h5,h6,.navbar-brand { font-family:'Raleway',system-ui,sans-serif; le
   font-size:.68rem;
   letter-spacing:1px;
   text-transform:uppercase;
-  color:var(--slate);
-  background:rgba(240,244,248,.76);
+  color:var(--muted);
+  background:rgba(243,248,248,.9);
 }
-.table td,.table th { border-color:rgba(26,95,138,.08); }
-.table-hover tbody tr:hover { background:rgba(43,170,204,.08); }
+.table td,.table th { border-color:rgba(16,45,67,.08); }
+.table-hover tbody tr:hover { background:rgba(57,185,183,.08); }
 .form-control,.form-select {
-  border:0;
-  border-bottom:1px solid rgba(26,95,138,.28);
-  border-radius:10px 10px 0 0;
+  border:1px solid var(--line);
+  border-radius:10px;
   background-color:rgba(255,255,255,.72);
 }
-.form-control:focus,.form-select:focus { border-color:var(--aqua); box-shadow:0 6px 0 -5px var(--mint); }
-.form-label { color:var(--slate); font-size:.73rem; font-weight:700; letter-spacing:.9px; text-transform:uppercase; }
+.form-control:focus,.form-select:focus { border-color:var(--teal); box-shadow:0 0 0 .18rem rgba(57,185,183,.16); }
+.form-label { color:var(--muted); font-size:.73rem; font-weight:700; letter-spacing:.9px; text-transform:uppercase; }
 .bubble-field { position:fixed; inset:0; overflow:hidden; pointer-events:none; z-index:0; }
 .bubble-field span {
   position:absolute;
