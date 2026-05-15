@@ -1,6 +1,7 @@
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import socket
 
 load_dotenv(override=True)
 
@@ -56,20 +57,37 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'main.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME', 'laundry_db'),
-        'USER': os.getenv('DB_USER', 'root'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
-        'PORT': os.getenv('DB_PORT', '3306'),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-            'sql_mode': 'STRICT_TRANS_TABLES',
+LOCAL_MYSQL_HOST = '127.0.0.1'
+LOCAL_MYSQL_PORT = 3306
+
+try:
+    with socket.create_connection((LOCAL_MYSQL_HOST, LOCAL_MYSQL_PORT), timeout=1):
+        LOCAL_MYSQL_AVAILABLE = True
+except OSError:
+    LOCAL_MYSQL_AVAILABLE = False
+
+if LOCAL_MYSQL_AVAILABLE:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.getenv('DB_NAME', 'your_local_db_name'),
+            'USER': os.getenv('DB_USER', 'root'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'your_local_password'),
+            'HOST': os.getenv('DB_HOST', LOCAL_MYSQL_HOST),
+            'PORT': os.getenv('DB_PORT', str(LOCAL_MYSQL_PORT)),
+            'OPTIONS': {
+                'charset': 'utf8mb4',
+                'sql_mode': 'STRICT_TRANS_TABLES',
+            },
+        }
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
         },
     }
-}
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
