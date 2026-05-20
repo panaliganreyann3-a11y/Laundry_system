@@ -59,9 +59,14 @@ a:hover { color: var(--aqua); }
   position: fixed;
   inset: 0 auto 0 0;
   height: 100dvh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   box-shadow: 10px 0 34px rgba(13,33,55,.16);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.25) transparent;
 }
+#sidebar::-webkit-scrollbar { width: 6px; }
+#sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); border-radius: 999px; }
 .sb-brand { padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,.10); display: flex; align-items: center; gap: 10px; }
 .brand-box,.user-photo {
   width: 34px;
@@ -109,7 +114,15 @@ a:hover { color: var(--aqua); }
 #sidebar a.sb-link:hover { background: var(--sb-hover); color: #fff; transform: translateX(2px); border-color: rgba(255,255,255,.10); }
 #sidebar a.sb-link.active { background: linear-gradient(135deg, rgba(43,170,204,.95), rgba(62,207,178,.86)); color: #062033; box-shadow: 0 10px 24px rgba(43,170,204,.22); }
 #sidebar a.sb-link i { font-size: .95rem; width: 19px; }
-.sb-footer { margin-top: auto; padding: 10px 14px; border-top: 1px solid rgba(255,255,255,.10); }
+.sb-footer {
+  margin-top: auto;
+  padding: 10px 14px max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(255,255,255,.10);
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(18,57,87,.96), #123957);
+  box-shadow: 0 -14px 24px rgba(13,33,55,.18);
+}
 .sb-user { color: rgba(255,255,255,.55); font-size: .72rem; }
 .sb-username { color: #fff; font-weight: 700; font-size: .87rem; }
 
@@ -315,6 +328,15 @@ a:hover { color: var(--aqua); }
   .top-bar { padding: 14px 16px; }
   .card-header { align-items: flex-start !important; gap: 10px; }
   .kpi { min-height: 110px; }
+}
+
+@media (max-height: 760px) and (min-width: 769px) {
+  .sb-brand { padding: 10px 14px; }
+  .brand-box,.user-photo { width: 32px; height: 32px; }
+  .sb-section { padding-top: 6px; }
+  .sb-label { margin-bottom: 2px; }
+  #sidebar a.sb-link { padding: 6px 10px; font-size: .8rem; margin-bottom: 1px; }
+  .sb-footer { padding: 8px 14px 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
