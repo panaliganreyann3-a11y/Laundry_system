@@ -22,6 +22,7 @@ from laundry.views import (
     ITEMS_PER_PAGE,
     TRACKING_BASE_URL,
     advance_order_status,
+    build_tracking_url,
     deduct_inventory_for_order,
     expire_customer_points,
     generate_qr_for_order,
@@ -740,6 +741,7 @@ def order_receipt(request, order_id):
         'order': order,
         'is_admin': is_admin(request.user),
         'tracking_base_url': TRACKING_BASE_URL,
+        'tracking_url': build_tracking_url(order),
     })
 
 
