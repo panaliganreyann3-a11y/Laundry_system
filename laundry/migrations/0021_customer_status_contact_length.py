@@ -1,6 +1,32 @@
 from django.db import migrations, models
 
 
+def add_customer_status_column(apps, schema_editor):
+    table_name = 'laundry_customer'
+    column_name = 'status'
+    existing_columns = {
+        column.name
+        for column in schema_editor.connection.introspection.get_table_description(
+            schema_editor.connection.cursor(),
+            table_name,
+        )
+    }
+
+    if column_name in existing_columns:
+        return
+
+    schema_editor.execute(
+        "ALTER TABLE laundry_customer ADD COLUMN status varchar(12) NOT NULL DEFAULT 'NEW'"
+    )
+
+
+def remove_customer_status_column(apps, schema_editor):
+    if schema_editor.connection.vendor == 'sqlite':
+        return
+
+    schema_editor.execute("ALTER TABLE laundry_customer DROP COLUMN IF EXISTS status")
+
+
 def normalize_contacts(apps, schema_editor):
     Customer = apps.get_model('laundry', 'Customer')
     for customer in Customer.objects.all():
@@ -20,10 +46,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.SeparateDatabaseAndState(
             database_operations=[
-                migrations.RunSQL(
-                    "ALTER TABLE laundry_customer ADD COLUMN IF NOT EXISTS status varchar(12) NOT NULL DEFAULT 'NEW'",
-                    reverse_sql="ALTER TABLE laundry_customer DROP COLUMN IF EXISTS status",
-                ),
+                migrations.RunPython(add_customer_status_column, remove_customer_status_column),
             ],
             state_operations=[
                 migrations.AddField(

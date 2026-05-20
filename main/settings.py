@@ -57,24 +57,28 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'main.wsgi.application'
 
-LOCAL_MYSQL_HOST = '127.0.0.1'
-LOCAL_MYSQL_PORT = 3306
+LOCAL_MYSQL_HOST = os.getenv('DB_HOST', '127.0.0.1')
+LOCAL_MYSQL_PORT = int(os.getenv('DB_PORT', '3306'))
+USE_SQLITE = os.getenv('USE_SQLITE', 'False') == 'True'
 
-try:
-    with socket.create_connection((LOCAL_MYSQL_HOST, LOCAL_MYSQL_PORT), timeout=1):
-        LOCAL_MYSQL_AVAILABLE = True
-except OSError:
-    LOCAL_MYSQL_AVAILABLE = False
 
-if LOCAL_MYSQL_AVAILABLE:
+def is_mysql_available(host=LOCAL_MYSQL_HOST, port=LOCAL_MYSQL_PORT):
+    try:
+        with socket.create_connection((host, port), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
+if not USE_SQLITE and is_mysql_available():
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': os.getenv('DB_NAME', 'your_local_db_name'),
+            'NAME': os.getenv('DB_NAME', 'laundry_db'),
             'USER': os.getenv('DB_USER', 'root'),
-            'PASSWORD': os.getenv('DB_PASSWORD', 'your_local_password'),
-            'HOST': os.getenv('DB_HOST', LOCAL_MYSQL_HOST),
-            'PORT': os.getenv('DB_PORT', str(LOCAL_MYSQL_PORT)),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
+            'HOST': LOCAL_MYSQL_HOST,
+            'PORT': str(LOCAL_MYSQL_PORT),
             'OPTIONS': {
                 'charset': 'utf8mb4',
                 'sql_mode': 'STRICT_TRANS_TABLES',
@@ -107,6 +111,12 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/login/'
 LOGOUT_REDIRECT_URL = '/login/'
 
+SESSION_COOKIE_AGE = 3600
+SESSION_SAVE_EVERY_REQUEST = True
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
@@ -114,9 +124,3 @@ EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
-
-SESSION_COOKIE_AGE = 3600
-SESSION_SAVE_EVERY_REQUEST = True
-
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
