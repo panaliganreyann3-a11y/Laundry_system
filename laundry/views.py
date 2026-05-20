@@ -1,5 +1,6 @@
 from datetime import datetime, time
 from functools import wraps
+from urllib.parse import urlencode
 
 from django.db.models import Sum
 from django.shortcuts import redirect, render
@@ -15,11 +16,16 @@ from django.core.files.base import ContentFile
 from .models import ActivityLog, Order, RewardTransaction, ServiceInventoryUsage, SiteSettings, StockMovement
 
 ITEMS_PER_PAGE = 20
-TRACKING_BASE_URL = 'http://127.0.0.1:8000/track/'
+TRACKING_BASE_URL = settings.TRACKING_BASE_URL
 POINTS_PER_COMPLETED_ORDER = 1
 POINTS_PER_REWARD = 10
 DISCOUNT_PER_REWARD = 50.0
 POINT_EXPIRY_DAYS = 183
+
+
+def build_tracking_url(order):
+    separator = '&' if '?' in TRACKING_BASE_URL else '?'
+    return f"{TRACKING_BASE_URL}{separator}{urlencode({'tracking_number': order.tracking_number})}"
 
 
 def local_day_range(day):
@@ -201,7 +207,7 @@ def notify_customer_order_update(order):
         return False
 
     site_name = SiteSettings.load().site_name
-    tracking_url = f"{TRACKING_BASE_URL}?tracking_number={order.tracking_number}"
+    tracking_url = build_tracking_url(order)
     subject = None
     body = None
 
@@ -375,7 +381,7 @@ def generate_qr_for_order(order):
         order.tracking_number = Order._meta.get_field('tracking_number').get_default()
         order.save(update_fields=['tracking_number', 'updated_at'])
 
-    tracking_url = f"{TRACKING_BASE_URL}?tracking_number={order.tracking_number}"
+    tracking_url = build_tracking_url(order)
     qr = qrcode.make(tracking_url)
     buffer = io.BytesIO()
     qr.save(buffer, format='PNG')
