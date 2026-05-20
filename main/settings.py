@@ -3,9 +3,9 @@ from dotenv import load_dotenv
 import os
 import socket
 
-load_dotenv(override=True)
-
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+load_dotenv(BASE_DIR / '.env', override=True)
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'fallback-insecure-key-change-in-production')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
